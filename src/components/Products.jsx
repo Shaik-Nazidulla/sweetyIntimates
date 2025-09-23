@@ -99,6 +99,13 @@ const Products = ({ category: propCategory, subcategory: propSubcategory, title:
   const isLoading = isSearchMode ? searchLoading : loading;
   const currentError = isSearchMode ? searchError : error;
   
+  // Helper function to get category name by ID
+  const getCategoryNameById = (categoryId) => {
+    if (!categoryId || !categories || categories.length === 0) return '';
+    const category = categories.find(cat => cat._id === categoryId);
+    return category ? category.name : '';
+  };
+  
   // Load categories on component mount
   useEffect(() => {
     if (categories.length === 0) {
@@ -455,6 +462,9 @@ const Products = ({ category: propCategory, subcategory: propSubcategory, title:
     const currentColor = product.colors?.[currentColorIndex];
     const currentImage = currentColor?.images?.[currentImageIndex];
     
+    // Get category name for this product
+    const productCategoryName = getCategoryNameById(product.category);
+    
     const handleProductClick = () => {
       navigate(`/product/${product._id}`);
       window.scrollTo({top: 30, behavior: "smooth"});
@@ -465,28 +475,12 @@ const Products = ({ category: propCategory, subcategory: propSubcategory, title:
       setCurrentImageIndex(0); // Reset image index when color changes
     };
 
-    const discount = product.originalPrice 
-      ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
-      : 0;
-
-    // Get all available sizes across all colors
-    const getAllAvailableSizes = () => {
-      const sizes = new Set();
-      product.colors?.forEach(color => {
-        color.sizeStock?.forEach(sizeObj => {
-          if (sizeObj.stock > 0) {
-            sizes.add(sizeObj.size);
-          }
-        });
-      });
-      return Array.from(sizes).sort();
-    };
-
     return (
       <div 
         className="product-card bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer group"
         onClick={handleProductClick}
       >
+        {/* Clean Product Image - No Overlays */}
         <div className="relative aspect-[3/4] bg-gray-50 overflow-hidden">
           <img 
             src={currentImage || product.colors?.[0]?.images?.[0]} 
@@ -499,23 +493,15 @@ const Products = ({ category: propCategory, subcategory: propSubcategory, title:
             }}
             onMouseLeave={() => setCurrentImageIndex(0)}
           />
-          {discount > 0 && (
-            <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded">
-              {discount}% OFF
-            </span>
-          )}
+        </div>
+        
+        <div className="p-3">
+          {/* Product Info Flow: Colors -> Category -> Product Name -> Price */}
           
-          {/* Product Code Badge */}
-          {product.code && (
-            <div className="absolute top-2 right-2 bg-black text-white text-xs px-2 py-1 rounded">
-              {product.code}
-            </div>
-          )}
-
-          {/* Color Selection Dots */}
-          {product.colors && product.colors.length > 1 && (
-            <div className="absolute bottom-2 left-2 flex gap-1">
-              {product.colors.slice(0, 5).map((color, index) => (
+          {/* 1. Available Colors Display */}
+          <div className="flex items-center gap-1 mb-2">
+            <div className="flex gap-1">
+              {product.colors?.slice(0, 5).map((color, index) => (
                 <button
                   key={color._id || index}
                   onClick={(e) => {
@@ -531,37 +517,28 @@ const Products = ({ category: propCategory, subcategory: propSubcategory, title:
                   />
                 </button>
               ))}
-              {product.colors.length > 5 && (
-                <span className="text-white text-xs bg-black bg-opacity-50 px-1 rounded">
-                  +{product.colors.length - 5}
-                </span>
+              {product.colors?.length > 5 && (
+                <span className="text-xs text-gray-500">+{product.colors.length - 5}</span>
               )}
             </div>
-          )}
-        </div>
-        
-        <div className="p-3">
-          {/* Brand/Category tags */}
-          {product.tags && product.tags.length > 0 && (
-            <div className="flex gap-1 mb-2">
-              {product.tags.slice(0, 2).map((tag, index) => (
-                <span 
-                  key={index} 
-                  className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full"
-                >
-                  {tag}
-                </span>
-              ))}
+          </div>
+          
+          {/* 2. Category Name */}
+          {productCategoryName && (
+            <div className="mb-2">
+              <span className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+                {productCategoryName}
+              </span>
             </div>
           )}
           
-          {/* Product Name */}
+          {/* 3. Product Name */}
           <h3 className="text-gray-900 font-medium mb-2 text-sm line-clamp-2 min-h-[2.5rem]">
             {product.name}
           </h3>
           
-          {/* Price Section */}
-          <div className="flex items-baseline gap-2 mb-2">
+          {/* 4. Price Section */}
+          <div className="flex items-baseline gap-2">
             <span className="text-lg font-bold text-gray-900">
               ₹{product.price?.toLocaleString('en-IN')}
             </span>
@@ -571,54 +548,6 @@ const Products = ({ category: propCategory, subcategory: propSubcategory, title:
               </span>
             )}
           </div>
-          
-          {/* Discount Info */}
-          {discount > 0 && (
-            <p className="text-green-600 text-sm font-medium mb-2">
-              Save ₹{(product.originalPrice - product.price)?.toLocaleString('en-IN')}
-            </p>
-          )}
-          
-          {/* Available Colors */}
-          <div className="flex items-center gap-1 mb-2">
-            <span className="text-xs text-gray-500">{product.colors?.length} Color{product.colors?.length > 1 ? 's' : ''}:</span>
-            <div className="flex gap-1">
-              {product.colors?.slice(0, 4).map((color, index) => (
-                <ColorCircle 
-                  key={color._id || index}
-                  color={color} 
-                  size="w-3 h-3"
-                />
-              ))}
-              {product.colors?.length > 4 && (
-                <span className="text-xs text-gray-500">+{product.colors.length - 4}</span>
-              )}
-            </div>
-          </div>
-
-          {/* Available Sizes */}
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-gray-500">Sizes:</span>
-            <div className="flex gap-1">
-              {getAllAvailableSizes().slice(0, 4).map((size, index) => (
-                <span key={index} className="text-xs bg-gray-200 px-1.5 py-0.5 rounded">
-                  {size.toUpperCase()}
-                </span>
-              ))}
-              {getAllAvailableSizes().length > 4 && (
-                <span className="text-xs text-gray-500">+{getAllAvailableSizes().length - 4}</span>
-              )}
-            </div>
-          </div>
-
-          {/* Current Color Name Display */}
-          {currentColor && (
-            <div className="mt-2 pt-2 border-t border-gray-100">
-              <span className="text-xs text-gray-600">
-                Selected: <span className="font-medium">{currentColor.colorName}</span>
-              </span>
-            </div>
-          )}
         </div>
       </div>
     );

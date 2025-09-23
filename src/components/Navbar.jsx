@@ -1,4 +1,4 @@
-// Navbar.jsx - Consolidated version
+// Navbar.jsx - Updated version with proper API integration
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from 'react-redux';
@@ -11,8 +11,10 @@ import {
   searchCategories,
   getCategories 
 } from '../Redux/slices/categorySlice';
-import { searchSubcategories } from '../Redux/slices/subcategorySlice';
-import { getCategoryPath, getSubcategoryPath } from '../utils/categoryUtils';
+import { 
+  getAllSubcategories,
+  searchSubcategories 
+} from '../Redux/slices/subcategorySlice';
 import Logo from "/LOGO.png";
 import Banner from "../components/Banner";
 
@@ -47,16 +49,30 @@ const Navbar = () => {
   } = useSelector(state => state.categories);
   
   const { 
+    subcategories,
     searchResults: subcategoryResults, 
     searchLoading: subcategoryLoading 
   } = useSelector(state => state.subcategories);
 
-  // Load categories on mount
+  // Load categories and subcategories on mount
   useEffect(() => {
     if (categories.length === 0) {
       dispatch(getCategories());
     }
-  }, [dispatch, categories.length]);
+    if (subcategories.length === 0) {
+      dispatch(getAllSubcategories());
+    }
+  }, [dispatch, categories.length, subcategories.length]);
+
+  // Map subcategories to categories for dropdown display
+  const categoriesWithSubcategories = React.useMemo(() => {
+    return categories.map(category => ({
+      ...category,
+      subcategories: subcategories.filter(sub => 
+        sub.category === category._id || sub.category?._id === category._id
+      )
+    }));
+  }, [categories, subcategories]);
 
   // Close search dropdown when clicking outside
   useEffect(() => {
@@ -71,6 +87,33 @@ const Navbar = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  // Close mobile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (mobileMenuOpen && !event.target.closest('.mobile-menu-container')) {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [mobileMenuOpen]);
+
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [mobileMenuOpen]);
 
   // Debounced search
   useEffect(() => {
@@ -87,6 +130,7 @@ const Navbar = () => {
   }, [searchQuery]);
 
   const performSearch = (query) => {
+    // Search with updated API parameters
     dispatch(searchProducts({ query, page: 1, limit: 5 }));
     dispatch(searchCategories(query));
     dispatch(searchSubcategories(query));
@@ -97,7 +141,7 @@ const Navbar = () => {
     e.preventDefault();
     if (searchQuery.trim() !== "") {
       dispatch(setSearchQuery(searchQuery.trim()));
-      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
       setIsSearchDropdownOpen(false);
       setSearchOpen(false);
       setSearchQuery("");
@@ -125,7 +169,8 @@ const Navbar = () => {
   };
 
   const handleCategoryClick = (category) => {
-    navigate(getCategoryPath(category));
+    const categorySlug = category.name.toLowerCase().replace(/\s+/g, '-');
+    navigate(`/products/${categorySlug}`);
     setIsSearchDropdownOpen(false);
     setSearchOpen(false);
     setSearchQuery("");
@@ -133,7 +178,9 @@ const Navbar = () => {
   };
 
   const handleSubcategoryClick = (subcategory, category) => {
-    navigate(getSubcategoryPath(category, subcategory));
+    const categorySlug = category.name.toLowerCase().replace(/\s+/g, '-');
+    const subcategorySlug = subcategory.name.toLowerCase().replace(/\s+/g, '-');
+    navigate(`/products/${categorySlug}/${subcategorySlug}`);
     setIsSearchDropdownOpen(false);
     setSearchOpen(false);
     setSearchQuery("");
@@ -143,7 +190,7 @@ const Navbar = () => {
   const handleViewAllResults = () => {
     if (searchQuery.trim()) {
       dispatch(setSearchQuery(searchQuery.trim()));
-      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
       setIsSearchDropdownOpen(false);
       setSearchOpen(false);
       setSearchQuery("");
@@ -155,12 +202,30 @@ const Navbar = () => {
     return location.pathname === path || location.pathname.startsWith(path + '/');
   };
 
+  // Helper function to get category path
+  const getCategoryPath = (category) => {
+    const categorySlug = category.name.toLowerCase().replace(/\s+/g, '-');
+    return `/products/${categorySlug}`;
+  };
+
+  // Helper function to get subcategory path
+  const getSubcategoryPath = (category, subcategory) => {
+    const categorySlug = category.name.toLowerCase().replace(/\s+/g, '-');
+    const subcategorySlug = subcategory.name.toLowerCase().replace(/\s+/g, '-');
+    return `/products/${categorySlug}/${subcategorySlug}`;
+  };
+
   // Search results helpers
   const hasSearchResults = productResults.length > 0 || categoryResults.length > 0 || subcategoryResults.length > 0;
   const isSearchLoading = productLoading || categoryLoading || subcategoryLoading;
 
   return (
     <>
+      {/* Mobile Menu Overlay */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden animate-fadeIn" />
+      )}
+
       {/* Navbar - Logo & Search */}
       <div className="bg-white border-b border-gray-200 shadow-sm relative">
         <div className="flex items-center px-4 sm:px-6 py-4">
@@ -168,22 +233,26 @@ const Navbar = () => {
           <div className="flex-1 lg:hidden">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 hover:bg-gray-100 rounded-md transition-colors duration-200"
+              className="p-2 hover:bg-gray-100 rounded-md transition-all duration-200 relative group"
               aria-label="Toggle menu"
             >
-              <svg
-                className="w-6 h-6 text-gray-700"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
+              <div className="relative w-6 h-6">
+                <span
+                  className={`absolute block w-6 h-0.5 bg-gray-700 transform transition-all duration-300 ${
+                    mobileMenuOpen ? 'rotate-45 top-2.5' : 'top-1'
+                  }`}
                 />
-              </svg>
+                <span
+                  className={`absolute block w-6 h-0.5 bg-gray-700 transform transition-all duration-300 top-2.5 ${
+                    mobileMenuOpen ? 'opacity-0' : 'opacity-100'
+                  }`}
+                />
+                <span
+                  className={`absolute block w-6 h-0.5 bg-gray-700 transform transition-all duration-300 ${
+                    mobileMenuOpen ? '-rotate-45 top-2.5' : 'top-4'
+                  }`}
+                />
+              </div>
             </button>
           </div>
 
@@ -309,15 +378,18 @@ const Navbar = () => {
                               className="flex items-center p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
                             >
                               <img
-                                src={product.images?.[0]}
+                                src={product.colors?.[0]?.images?.[0] || product.images?.[0]}
                                 alt={product.name}
                                 className="w-12 h-12 object-cover rounded-md mr-3"
+                                onError={(e) => {
+                                  e.target.src = '/placeholder-image.jpg'; // Add a placeholder image
+                                }}
                               />
                               <div className="flex-1">
                                 <h4 className="text-sm font-medium text-gray-900 line-clamp-1">
                                   {product.name}
                                 </h4>
-                                <p className="text-sm text-pink-600 font-semibold">₹{product.price}</p>
+                                <p className="text-sm text-pink-600 font-semibold">₹{product.price?.toLocaleString('en-IN')}</p>
                               </div>
                             </div>
                           ))}
@@ -356,29 +428,40 @@ const Navbar = () => {
                       {/* Subcategories Tab */}
                       {activeSearchTab === 'subcategories' && subcategoryResults.length > 0 && (
                         <div>
-                          {subcategoryResults.map((subcategory) => (
-                            <div
-                              key={subcategory._id}
-                              onClick={() => handleSubcategoryClick(subcategory)}
-                              className="flex items-center p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
-                            >
-                              <div className="w-12 h-12 bg-purple-100 rounded-md mr-3 flex items-center justify-center">
-                                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                                </svg>
+                          {subcategoryResults.map((subcategory) => {
+                            const parentCategory = categories.find(cat => 
+                              cat._id === subcategory.category || cat._id === subcategory.category?._id
+                            );
+                            
+                            return (
+                              <div
+                                key={subcategory._id}
+                                onClick={() => handleSubcategoryClick(subcategory, parentCategory)}
+                                className="flex items-center p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
+                              >
+                                <div className="w-12 h-12 bg-purple-100 rounded-md mr-3 flex items-center justify-center">
+                                  <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                  </svg>
+                                </div>
+                                <div className="flex-1">
+                                  <h4 className="text-sm font-medium text-gray-900">
+                                    {subcategory.name}
+                                  </h4>
+                                  {parentCategory && (
+                                    <p className="text-xs text-gray-500">
+                                      in {parentCategory.name}
+                                    </p>
+                                  )}
+                                  {subcategory.description && (
+                                    <p className="text-xs text-gray-600 line-clamp-1">
+                                      {subcategory.description}
+                                    </p>
+                                  )}
+                                </div>
                               </div>
-                              <div className="flex-1">
-                                <h4 className="text-sm font-medium text-gray-900">
-                                  {subcategory.name}
-                                </h4>
-                                {subcategory.description && (
-                                  <p className="text-xs text-gray-600 line-clamp-1">
-                                    {subcategory.description}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -480,31 +563,11 @@ const Navbar = () => {
         )}
       </div>
 
-      {/* Desktop Navigation with Dropdowns */}
+      {/* Desktop Navigation with Dropdowns - Categories Only */}
       <div className="hidden lg:block bg-white border-b border-gray-200 shadow-sm relative">
         <div className="px-6 py-3">
           <ul className="flex justify-center space-x-8 xl:space-x-12 text-sm font-medium text-gray-700">
-            <li>
-              <Link
-                to="/products"
-                className={`relative hover:text-pink-600 transition-all duration-300 uppercase tracking-wide pb-2 px-2 group hover:scale-105 ${
-                  isActivePage('/products')
-                    ? "text-pink-600 border-b-2 border-pink-600"
-                    : "hover:border-b-2 hover:border-pink-300"
-                }`}
-              >
-                All Products
-                <span
-                  className={`absolute bottom-0 left-0 w-full h-0.5 bg-pink-600 transform origin-left transition-transform duration-300 ${
-                    isActivePage('/products')
-                      ? "scale-x-100"
-                      : "scale-x-0 group-hover:scale-x-100"
-                  }`}
-                ></span>
-              </Link>
-            </li>
-            
-            {categories.map((category) => (
+            {categoriesWithSubcategories.map((category) => (
               <li 
                 key={category._id}
                 className="relative"
@@ -570,35 +633,49 @@ const Navbar = () => {
         </div>
       </div>
 
-      {/* Mobile Navigation with Expandable Categories */}
-      {mobileMenuOpen && (
-        <div className="lg:hidden fixed top-16 left-0 right-0 bg-white border-b border-gray-200 shadow-lg animate-slideDown z-50 max-h-96 overflow-y-auto">
-          <div className="px-4 py-4 space-y-2">
-            <Link
-              to="/products"
+      {/* Enhanced Mobile Navigation Slide-out Menu */}
+      <div className={`mobile-menu-container fixed top-0 left-0 h-full w-80 max-w-sm bg-white shadow-2xl transform transition-transform duration-300 ease-in-out z-50 lg:hidden ${
+        mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}>
+        <div className="flex flex-col h-full">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-pink-50 to-purple-50">
+            <div className="flex items-center">
+              <img src={Logo} alt="Sweety Intimate" className="h-8 w-auto mr-2" />
+              <span className="text-lg font-semibold text-gray-800">Menu</span>
+            </div>
+            <button
               onClick={() => setMobileMenuOpen(false)}
-              className={`block px-4 py-3 text-base font-medium uppercase tracking-wide rounded-md transition-all duration-200 hover:bg-pink-50 hover:text-pink-600 hover:translate-x-2 hover:shadow-sm ${
-                isActivePage('/products')
-                  ? "text-pink-600 bg-pink-50 border-l-4 border-pink-600"
-                  : "text-gray-700 hover:border-l-4 hover:border-pink-300"
-              }`}
+              className="p-2 hover:bg-pink-100 rounded-full transition-colors duration-200"
             >
-              All Products
-            </Link>
-            
-            {categories.map((category) => (
-              <MobileCategoryMenu 
-                key={category._id} 
-                category={category} 
-                isActive={isActivePage(getCategoryPath(category))}
-                onLinkClick={() => setMobileMenuOpen(false)}
-                onCategoryClick={handleCategoryClick}
-                onSubcategoryClick={handleSubcategoryClick}
-              />
-            ))}
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Menu Items */}
+          <div className="flex-1 overflow-y-auto py-4">
+            <div className="px-4 space-y-2">
+              {categoriesWithSubcategories.map((category) => (
+                <MobileCategoryMenu 
+                  key={category._id} 
+                  category={category} 
+                  isActive={isActivePage(getCategoryPath(category))}
+                  onLinkClick={() => setMobileMenuOpen(false)}
+                  onCategoryClick={handleCategoryClick}
+                  onSubcategoryClick={handleSubcategoryClick}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="p-4 border-t border-gray-200 bg-gray-50">
+            <p className="text-xs text-gray-500 text-center">© 2024 Sweety Intimate</p>
           </div>
         </div>
-      )}
+      </div>
 
       <Banner />
 
@@ -613,9 +690,24 @@ const Navbar = () => {
             transform: translateY(0);
           }
         }
+        
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+        
         .animate-slideDown {
           animation: slideDown 0.3s ease-out;
         }
+        
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-out;
+        }
+        
         .line-clamp-1 {
           display: -webkit-box;
           -webkit-line-clamp: 1;
@@ -627,31 +719,40 @@ const Navbar = () => {
   );
 };
 
-// Mobile Category Menu Component with Expand/Collapse
+// Enhanced Mobile Category Menu Component
 const MobileCategoryMenu = ({ category, isActive, onLinkClick, onCategoryClick, onSubcategoryClick }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const hasSubcategories = category.subcategories && category.subcategories.length > 0;
 
   return (
-    <div className="border-b border-gray-100 last:border-b-0">
-      <div className="flex items-center justify-between">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+      <div className="flex items-center">
         <button
           onClick={() => onCategoryClick(category)}
-          className={`flex-1 px-4 py-3 text-left text-base font-medium uppercase tracking-wide rounded-md transition-all duration-200 hover:bg-pink-50 hover:text-pink-600 hover:translate-x-2 hover:shadow-sm ${
+          className={`flex-1 px-4 py-4 text-left font-medium transition-all duration-200 hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 ${
             isActive
-              ? "text-pink-600 bg-pink-50 border-l-4 border-pink-600"
-              : "text-gray-700 hover:border-l-4 hover:border-pink-300"
+              ? "text-pink-600 bg-gradient-to-r from-pink-50 to-purple-50 border-l-4 border-pink-500"
+              : "text-gray-800 hover:text-pink-600"
           }`}
         >
-          {category.name}
+          <div className="flex items-center">
+            <div className={`w-3 h-3 rounded-full mr-3 ${isActive ? 'bg-pink-500' : 'bg-gray-300'}`}></div>
+            <span className="text-sm uppercase tracking-wide">{category.name}</span>
+            {isActive && (
+              <svg className="w-4 h-4 ml-2 text-pink-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+            )}
+          </div>
         </button>
+        
         {hasSubcategories && (
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="p-2 text-gray-500 hover:text-pink-600 transition-colors duration-200"
+            className="p-4 text-gray-500 hover:text-pink-600 hover:bg-pink-50 transition-all duration-200 border-l border-gray-100"
           >
             <svg
-              className={`w-5 h-5 transform transition-transform duration-200 ${
+              className={`w-5 h-5 transform transition-transform duration-300 ${
                 isExpanded ? "rotate-180" : ""
               }`}
               fill="none"
@@ -669,17 +770,28 @@ const MobileCategoryMenu = ({ category, isActive, onLinkClick, onCategoryClick, 
         )}
       </div>
       
-      {hasSubcategories && isExpanded && (
-        <div className="pl-6 pb-2 space-y-1">
-          {category.subcategories.map((subcategory) => (
-            <button
-              key={subcategory._id}
-              onClick={() => onSubcategoryClick(subcategory, category)}
-              className="block w-full text-left px-4 py-2 text-sm text-gray-600 hover:text-pink-600 hover:bg-pink-50 rounded-md transition-all duration-200"
-            >
-              {subcategory.name}
-            </button>
-          ))}
+      {/* Subcategories with smooth animation */}
+      {hasSubcategories && (
+        <div
+          className={`overflow-hidden transition-all duration-300 ease-in-out ${
+            isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+          }`}
+        >
+          <div className="border-t border-gray-100 bg-gradient-to-r from-gray-50 to-pink-50">
+            {category.subcategories.map((subcategory, index) => (
+              <button
+                key={subcategory._id}
+                onClick={() => onSubcategoryClick(subcategory, category)}
+                className="w-full text-left px-6 py-3 text-sm text-gray-700 hover:text-pink-600 hover:bg-white hover:shadow-sm transition-all duration-200 border-b border-gray-100 last:border-b-0 flex items-center group"
+              >
+                <div className="w-2 h-2 rounded-full bg-gray-300 mr-3 group-hover:bg-pink-400 transition-colors duration-200"></div>
+                <span className="flex-1">{subcategory.name}</span>
+                <svg className="w-4 h-4 opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
