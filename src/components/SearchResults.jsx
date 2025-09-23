@@ -1,3 +1,4 @@
+// src/components/SearchResults.jsx
 import React from "react";
 import { useLocation, Link } from "react-router-dom";
 import allProducts from "../components/ProductsInfo"; // ✅ import your products data

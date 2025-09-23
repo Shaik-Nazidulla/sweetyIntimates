@@ -1,86 +1,138 @@
-// ProductDetail.jsx
+// ProductDetail.jsx - Updated for new API integration
 import React, { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { useSelector, useDispatch } from 'react-redux';
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { gsap } from "gsap";
-import infoproducts from "./ProductsInfo"; // Shared dataset
-import { useCart } from "./CartContext";
-import { useWishlist } from "./WishlistContext";
+import { 
+  getProductById,
+  getProductsByCategory,
+  getProductsBySubcategory,
+  getAvailableSizes,
+  clearCurrentProduct 
+} from '../Redux/slices/productsSlice';
+import { useCart } from '../components/CartContext';
+import { useWishlist } from '../components/WishlistContext';
 
 const ProductDetail = () => {
   const { productId } = useParams();
   const navigate = useNavigate();
-  const { addToCart } = useCart();
-  const { wishlistItems, toggleWishlist } = useWishlist();
+  const dispatch = useDispatch();
 
-  // Product states
-  const [currentProduct, setCurrentProduct] = useState(null);
-  const [selectedColor, setSelectedColor] = useState("");
+  // Use cart and wishlist hooks instead of direct Redux
+  const { addToCart: addToCartHandler } = useCart();
+  const { addToWishlist, removeFromWishlist, isItemInWishlist } = useWishlist();
+
+  // Redux state
+  const { 
+    currentProduct, 
+    products: similarProducts,
+    loading, 
+    productLoading,
+    error,
+    productError,
+    productSizes,
+    sizesLoading
+  } = useSelector(state => state.products);
+
+  // Get authentication state
+  const { isAuthenticated } = useSelector(state => state.auth);
+
+  // Local states
+  const [selectedColorIndex, setSelectedColorIndex] = useState(0);
   const [selectedSize, setSelectedSize] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
-
-  // Similar products states
-  const [similarProducts, setSimilarProducts] = useState([]);
   const [similarProductsIndex, setSimilarProductsIndex] = useState(0);
   const [itemsPerPage, setItemsPerPage] = useState(4);
+  const [addingToCart, setAddingToCart] = useState(false);
+  const [addingToWishlist, setAddingToWishlist] = useState(false);
 
   // Refs
   const sectionRef = useRef(null);
   const similarProductsRef = useRef(null);
 
-  // Fetch product data based on productId
+  // Get current color object
+  const selectedColor = currentProduct?.colors?.[selectedColorIndex];
+  
+  // Check if product is in wishlist using the hook
+  const isInWishlist = currentProduct ? isItemInWishlist(currentProduct._id) : false;
+
+  // Add this component for better UX
+  const ProductDetailSkeleton = () => (
+    <div className="animate-pulse">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-12">
+        <div className="bg-gray-300 h-[600px] rounded-lg"></div>
+        <div className="space-y-4">
+          <div className="bg-gray-300 h-8 rounded w-3/4"></div>
+          <div className="bg-gray-300 h-6 rounded w-1/2"></div>
+          <div className="bg-gray-300 h-4 rounded w-full"></div>
+          <div className="bg-gray-300 h-12 rounded w-full"></div>
+        </div>
+      </div>
+    </div>
+  );
+
+  
+
+  // Fetch product data
   useEffect(() => {
-    setLoading(true);
-
-    const product = infoproducts.find((p) => p.id === parseInt(productId));
-
-    if (product) {
-      setCurrentProduct(product);
-      setSelectedColor(product.colors?.[0] || "");
-      setSelectedSize(product.sizes?.[0] || "");
-
-      const similar = infoproducts
-        .filter((p) => p.category === product.category && p.id !== product.id)
-        .slice(0, 8);
-      setSimilarProducts(similar);
-
-      // Reset scroll to top on product change
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    } else {
-      navigate("/products/all");
+    if (productId) {
+      dispatch(getProductById(productId));
     }
 
-    setLoading(false);
-  }, [productId, navigate]);
+    // Cleanup on component unmount
+    return () => {
+      dispatch(clearCurrentProduct());
+    };
+  }, [productId, dispatch]);
 
-  // Safe check for wishlist status
-  const isInWishlist = currentProduct
-    ? wishlistItems.some((item) => item.id === currentProduct.id)
-    : false;
+  // Initialize product data when currentProduct changes
+  useEffect(() => {
+    if (currentProduct?.colors?.length > 0) {
+      // Set default color and reset image index
+      setSelectedColorIndex(0);
+      setCurrentImageIndex(0);
+      
+      // Set default size from first color's available sizes
+      const firstColor = currentProduct.colors[0];
+      const availableSize = firstColor.sizeStock?.find(size => size.stock > 0);
+      setSelectedSize(availableSize?.size || "");
 
-  // Color mapping for swatches
-  const colorMap = {
-    black: "#000000",
-    red: "#FF0000",
-    blue: "#0066CC",
-    navy: "#000080",
-    "navy blue": "#000080",
-    pink: "#FF69B4",
-    white: "#FFFFFF",
-    grey: "#808080",
-    gray: "#808080",
-    beige: "#F5F5DC",
-    nude: "#D4A574",
-    peach: "#FFCBA4",
-    yellow: "#FFFF00",
-    green: "#008000",
-    rose: "#FF007F",
-    wine: "#722F37",
-    "wine red": "#722F37",
-    multi: "linear-gradient(45deg, #FF0000, #00FF00, #0000FF)",
-  };
+      // Fetch similar products - prefer subcategory over category
+      if (currentProduct.subcategory) {
+        dispatch(getProductsBySubcategory({ 
+          subcategoryId: currentProduct.subcategory, 
+          page: 1, 
+          limit: 8,
+          isActive: true 
+        }));
+      } else if (currentProduct.category) {
+        dispatch(getProductsByCategory({ 
+          categoryId: currentProduct.category, 
+          page: 1, 
+          limit: 8 
+        }));
+      }
+
+      // Reset scroll to top
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [currentProduct, dispatch]);
+
+  // Load sizes when color changes
+  useEffect(() => {
+    if (currentProduct && selectedColor && selectedColor.colorName) {
+      // Check if we already have sizes for this product/color combination
+      const productSizesData = productSizes[currentProduct._id];
+      if (!productSizesData || !productSizesData[selectedColor.colorName]) {
+        dispatch(getAvailableSizes({
+          productId: currentProduct._id,
+          colorName: selectedColor.colorName
+        }));
+      }
+    }
+  }, [currentProduct, selectedColor, dispatch, productSizes]);
 
   // Adjust similar products per page on resize
   useEffect(() => {
@@ -96,9 +148,17 @@ const ProductDetail = () => {
     return () => window.removeEventListener("resize", updateItemsPerPage);
   }, []);
 
+  // Reset selected size when color changes
+  useEffect(() => {
+    if (selectedColor?.sizeStock) {
+      const availableSize = selectedColor.sizeStock.find(size => size.stock > 0);
+      setSelectedSize(availableSize?.size || "");
+    }
+  }, [selectedColorIndex, selectedColor]);
+
   // Animate product details + similar products
   useEffect(() => {
-    if (!loading && currentProduct) {
+    if (!loading && !productLoading && currentProduct) {
       gsap.fromTo(
         ".product-detail-section",
         { opacity: 0, y: 30 },
@@ -111,7 +171,82 @@ const ProductDetail = () => {
         { opacity: 1, y: 0, duration: 0.8, delay: 0.2, ease: "power2.out" }
       );
     }
-  }, [loading, currentProduct]);
+  }, [loading, productLoading, currentProduct]);
+
+  // Handle add to cart with new API
+  const handleAddToCart = async () => {
+    if (!currentProduct || !selectedColor || !selectedSize) return;
+    
+    setAddingToCart(true);
+    
+    try {
+      // Get current selected image
+      const currentImages = selectedColor?.images || [];
+      const selectedImage = currentImages[currentImageIndex] || currentImages[0] || '';
+      
+      // Prepare color object
+      const colorObj = {
+        colorName: selectedColor.colorName,
+        colorHex: selectedColor.colorHex || '#000000'
+      };
+
+      // Use the cart context to add to cart
+      const result = await addToCartHandler(
+        currentProduct, 
+        quantity, 
+        selectedColor.colorName, 
+        selectedSize, 
+        selectedImage
+      );
+
+      if (result.success) {
+        // Success feedback already handled by CartContext
+        console.log('Added to cart successfully');
+      }
+    } catch (error) {
+      console.error('Failed to add to cart:', error);
+    } finally {
+      setAddingToCart(false);
+    }
+  };
+
+  // Handle wishlist toggle with new API
+  const handleWishlistToggle = async () => {
+    if (!currentProduct) return;
+
+    setAddingToWishlist(true);
+
+    try {
+      if (isInWishlist) {
+        await removeFromWishlist(currentProduct._id);
+      } else {
+        // Transform product for wishlist
+        const productForWishlist = {
+          _id: currentProduct._id,
+          id: currentProduct._id,
+          name: currentProduct.name,
+          brand: currentProduct.name,
+          price: currentProduct.price,
+          originalPrice: currentProduct.originalPrice,
+          image: selectedColor?.images?.[0] || currentProduct.images?.[0] || '',
+          images: currentProduct.images || [],
+          description: currentProduct.description
+        };
+        
+        await addToWishlist(productForWishlist);
+      }
+    } catch (error) {
+      console.error('Failed to update wishlist:', error);
+    } finally {
+      setAddingToWishlist(false);
+    }
+  };
+
+  // Handle color selection
+  const handleColorChange = (colorIndex) => {
+    setSelectedColorIndex(colorIndex);
+    setCurrentImageIndex(0); // Reset to first image of selected color
+  };
 
   // Similar products carousel
   const nextSimilarProducts = () => {
@@ -128,28 +263,37 @@ const ProductDetail = () => {
 
   // Helper components
   const ColorCircle = ({ color, size = "w-4 h-4" }) => {
-    const colorValue = colorMap[color.toLowerCase()] || color;
+    // Use hex value if available, otherwise fallback to color name
+    const colorValue = color.colorHex || color.colorName;
+    
     return (
       <div
-        className={`${size} rounded-full border-2 border-gray-300`}
-        style={{ background: colorValue }}
+        className={`${size} rounded-full border-2 border-gray-300 flex-shrink-0`}
+        style={{ 
+          backgroundColor: colorValue?.startsWith('#') ? colorValue : colorValue,
+          background: colorValue?.includes('linear-gradient') ? colorValue : undefined
+        }}
+        title={color.colorName}
       />
     );
   };
 
   const SimilarProductCard = ({ product }) => {
     const [hoverIndex, setHoverIndex] = useState(0);
+    const [currentColorIndex, setCurrentColorIndex] = useState(0);
 
     const handleProductClick = () => {
-      navigate(`/product/${product.id}`);
+      navigate(`/product/${product._id}`);
     };
 
     const discount = product.originalPrice
       ? Math.round(
-          ((product.originalPrice - product.price) / product.originalPrice) *
-            100
+          ((product.originalPrice - product.price) / product.originalPrice) * 100
         )
       : 0;
+
+    const currentColor = product.colors?.[currentColorIndex];
+    const displayImage = currentColor?.images?.[hoverIndex] || currentColor?.images?.[0];
 
     return (
       <div
@@ -158,10 +302,14 @@ const ProductDetail = () => {
       >
         <div className="relative aspect-[3/4] bg-gray-100 overflow-hidden">
           <img
-            src={product.images[hoverIndex]}
+            src={displayImage}
             alt={product.name}
             className="w-full h-full object-cover transition-transform hover:scale-105"
-            onMouseEnter={() => product.images[1] && setHoverIndex(1)}
+            onMouseEnter={() => {
+              if (currentColor?.images?.length > 1) {
+                setHoverIndex(1);
+              }
+            }}
             onMouseLeave={() => setHoverIndex(0)}
           />
           {discount > 0 && (
@@ -171,22 +319,38 @@ const ProductDetail = () => {
           )}
         </div>
         <div className="p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="flex gap-1">
+          {/* Color Selection */}
+          {product.colors && product.colors.length > 1 && (
+            <div className="flex gap-1 mb-2">
               {product.colors.slice(0, 4).map((color, idx) => (
-                <ColorCircle key={idx} color={color} />
+                <button
+                  key={color._id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentColorIndex(idx);
+                    setHoverIndex(0);
+                  }}
+                  className={`p-0.5 rounded-full border ${
+                    currentColorIndex === idx 
+                      ? 'border-pink-500' 
+                      : 'border-gray-300'
+                  }`}
+                >
+                  <ColorCircle color={color} size="w-3 h-3" />
+                </button>
               ))}
+              {product.colors.length > 4 && (
+                <span className="text-gray-500 text-xs self-center">
+                  +{product.colors.length - 4}
+                </span>
+              )}
             </div>
-            {product.colors.length > 4 && (
-              <span className="text-gray-500 text-sm">
-                +{product.colors.length - 4}
-              </span>
-            )}
-          </div>
-          <h3 className="text-gray-800 font-medium mb-1 text-sm">
+          )}
+
+          <h3 className="text-gray-800 font-medium mb-1 text-sm line-clamp-2">
             {product.name}
           </h3>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mb-1">
             <span className="text-lg font-bold text-gray-900">
               ₹{product.price}
             </span>
@@ -196,13 +360,20 @@ const ProductDetail = () => {
               </span>
             )}
           </div>
+          
+          {/* Color name display */}
+          {currentColor && (
+            <div className="text-xs text-gray-600">
+              Color: {currentColor.colorName}
+            </div>
+          )}
         </div>
       </div>
     );
   };
 
   // Loading screen
-  if (loading) {
+  if (loading || productLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -213,8 +384,34 @@ const ProductDetail = () => {
     );
   }
 
+  // Error screen
+  if (error || productError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-4 text-gray-900">
+            Error Loading Product
+          </h2>
+          <p className="text-gray-600 mb-4">{error || productError}</p>
+          <button
+            onClick={() => dispatch(getProductById(productId))}
+            className="bg-pink-600 text-white px-6 py-3 rounded-lg hover:bg-pink-700 mr-4"
+          >
+            Try Again
+          </button>
+          <button
+            onClick={() => navigate(-1)}
+            className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // Product not found
-  if (!currentProduct) {
+  if (!currentProduct && !loading && !productLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -222,7 +419,7 @@ const ProductDetail = () => {
             Product Not Found
           </h2>
           <button
-            onClick={() => navigate("/products/all")}
+            onClick={() => navigate("/products")}
             className="bg-pink-600 text-white px-6 py-3 rounded-lg hover:bg-pink-700"
           >
             Browse Products
@@ -240,21 +437,31 @@ const ProductDetail = () => {
       )
     : 0;
 
+  // Filter similar products (exclude current product)
+  const filteredSimilarProducts = similarProducts.filter(
+    product => product._id !== currentProduct._id
+  );
+
+  // Get current images based on selected color
+  const currentImages = selectedColor?.images || [];
+  const currentImage = currentImages[currentImageIndex] || currentImages[0];
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Breadcrumb */}
       <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center text-sm text-gray-600">
-          <button
-            onClick={() => navigate(-1)}
-            className="hover:text-gray-900 flex items-center"
-          >
-            ← Back
-          </button>
-          <span className="mx-2">/</span>
-          <span className="text-gray-900 capitalize">
-            {currentProduct.category}
-          </span>
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <nav className="flex items-center space-x-2 text-sm text-gray-500">
+            <Link to="/" className="hover:text-pink-600 transition-colors">Home</Link>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            <Link to="/products" className="hover:text-pink-600 transition-colors">Products</Link>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            <span className="text-gray-900 font-medium truncate">{currentProduct.name}</span>
+          </nav>
         </div>
       </div>
 
@@ -264,19 +471,19 @@ const ProductDetail = () => {
         className="product-detail-section py-6 md:py-12 bg-white"
       >
         <div className="container mx-auto px-4 md:px-6 lg:px-12 grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-12">
-          {/* Left: Images - Mobile: Full width, Desktop: Side layout */}
+          {/* Left: Images */}
           <div className="order-1 lg:order-1">
             {/* Desktop Layout - Side by side */}
             <div className="hidden lg:flex gap-4">
               <div className="flex-1">
                 <img
-                  src={currentProduct.images[currentImageIndex]}
-                  alt={currentProduct.name}
+                  src={currentImage}
+                  alt={`${currentProduct.name} - ${selectedColor?.colorName}`}
                   className="w-full h-[600px] object-cover rounded-lg"
                 />
               </div>
               <div className="flex flex-col gap-2 w-28">
-                {currentProduct.images.map((img, idx) => (
+                {currentImages.map((img, idx) => (
                   <button
                     key={idx}
                     onClick={() => setCurrentImageIndex(idx)}
@@ -298,18 +505,16 @@ const ProductDetail = () => {
 
             {/* Mobile Layout - Stacked */}
             <div className="lg:hidden">
-              {/* Main Image - Full width on mobile */}
               <div className="w-full mb-4">
                 <img
-                  src={currentProduct.images[currentImageIndex]}
-                  alt={currentProduct.name}
+                  src={currentImage}
+                  alt={`${currentProduct.name} - ${selectedColor?.colorName}`}
                   className="w-full h-[400px] md:h-[500px] object-cover rounded-lg"
                 />
               </div>
               
-              {/* Thumbnail Images - Below main image on mobile */}
               <div className="flex gap-2 justify-center overflow-x-auto px-2">
-                {currentProduct.images.map((img, idx) => (
+                {currentImages.map((img, idx) => (
                   <button
                     key={idx}
                     onClick={() => setCurrentImageIndex(idx)}
@@ -335,6 +540,7 @@ const ProductDetail = () => {
             <h2 className="text-2xl md:text-3xl font-bold text-gray-800">
               {currentProduct.name}
             </h2>
+            
             <div className="flex items-center gap-3 flex-wrap">
               <p className="text-xl md:text-2xl font-bold">₹{currentProduct.price}</p>
               {currentProduct.originalPrice && (
@@ -348,24 +554,29 @@ const ProductDetail = () => {
                 </span>
               )}
             </div>
-            <p className="text-gray-600 text-sm md:text-base">{currentProduct.description}</p>
+
+            {currentProduct.description && (
+              <p className="text-gray-600 text-sm md:text-base">{currentProduct.description}</p>
+            )}
 
             {/* Colors */}
-            {currentProduct.colors && (
+            {currentProduct.colors && currentProduct.colors.length > 0 && (
               <div>
-                <p className="font-bold mb-2 text-sm md:text-base">Color: {selectedColor}</p>
+                <p className="font-bold mb-2 text-sm md:text-base">
+                  Color: {selectedColor?.colorName}
+                </p>
                 <div className="flex gap-2 md:gap-3 flex-wrap">
                   {currentProduct.colors.map((color, idx) => (
                     <button
-                      key={idx}
-                      onClick={() => setSelectedColor(color)}
-                      className={`w-10 h-10 md:w-12 md:h-12 border-2 rounded-lg flex items-center justify-center ${
-                        selectedColor === color
+                      key={color._id}
+                      onClick={() => handleColorChange(idx)}
+                      className={`w-12 h-12 md:w-14 md:h-14 border-2 rounded-lg flex items-center justify-center p-1 ${
+                        selectedColorIndex === idx
                           ? "border-black"
-                          : "border-gray-300"
+                          : "border-gray-300 hover:border-gray-400"
                       }`}
                     >
-                      <ColorCircle color={color} size="w-6 h-6 md:w-8 md:h-8" />
+                      <ColorCircle color={color} size="w-8 h-8 md:w-10 md:h-10" />
                     </button>
                   ))}
                 </div>
@@ -373,24 +584,48 @@ const ProductDetail = () => {
             )}
 
             {/* Sizes */}
-            {currentProduct.sizes && (
+            {selectedColor?.sizeStock && selectedColor.sizeStock.length > 0 && (
               <div>
                 <p className="font-bold mb-2 text-sm md:text-base">Size: {selectedSize}</p>
-                <div className="flex gap-2 md:gap-3 flex-wrap">
-                  {currentProduct.sizes.map((size, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setSelectedSize(size)}
-                      className={`px-3 py-2 md:px-4 md:py-2 border-2 font-medium text-sm md:text-base ${
-                        selectedSize === size
-                          ? "bg-black text-white border-black"
-                          : "bg-white text-black border-gray-300"
-                      }`}
-                    >
-                      {size}
-                    </button>
-                  ))}
-                </div>
+                {sizesLoading ? (
+                  <div className="text-sm text-gray-500">Loading sizes...</div>
+                ) : (
+                  <div className="flex gap-2 md:gap-3 flex-wrap">
+                    {selectedColor.sizeStock.map((sizeObj, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setSelectedSize(sizeObj.size)}
+                        disabled={sizeObj.stock === 0}
+                        className={`px-3 py-2 md:px-4 md:py-2 border-2 font-medium text-sm md:text-base ${
+                          selectedSize === sizeObj.size
+                            ? "bg-black text-white border-black"
+                            : sizeObj.stock === 0
+                            ? "bg-gray-200 text-gray-400 border-gray-300 cursor-not-allowed"
+                            : "bg-white text-black border-gray-300 hover:border-gray-400"
+                        }`}
+                      >
+                        {sizeObj.size.toUpperCase()}
+                        {sizeObj.stock === 0 && (
+                          <span className="block text-xs">Out of Stock</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Size Chart Link */}
+            {currentProduct.sizeChart && (
+              <div>
+                <a 
+                  href={currentProduct.sizeChart} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-pink-600 hover:text-pink-700 text-sm underline"
+                >
+                  View Size Chart
+                </a>
               </div>
             )}
 
@@ -411,24 +646,24 @@ const ProductDetail = () => {
                   +
                 </button>
               </div>
+              
               <div className="flex gap-2 flex-1">
                 <button
-                  className="flex-1 bg-black text-white py-3 px-4 md:px-6 hover:bg-gray-800 rounded text-sm md:text-base"
-                  onClick={() =>
-                    addToCart(currentProduct, quantity, selectedColor, selectedSize)
-                  }
+                  className="flex-1 bg-black text-white py-3 px-4 md:px-6 hover:bg-gray-800 rounded text-sm md:text-base disabled:bg-gray-400"
+                  onClick={handleAddToCart}
+                  disabled={!selectedSize || !selectedColor || addingToCart}
                 >
-                  Add To Cart
+                  {addingToCart ? 'Adding...' : 'Add To Cart'}
                 </button>
 
-                {/* Add to wishlist */}
                 <button
-                  onClick={() => toggleWishlist(currentProduct)}
-                  className={`p-3 border rounded transition ${
+                  onClick={handleWishlistToggle}
+                  disabled={addingToWishlist}
+                  className={`p-3 border rounded-full transition ${
                     isInWishlist
                       ? "bg-pink-100 border-pink-400 text-pink-600"
                       : "border-gray-300 hover:bg-gray-100"
-                  }`}
+                  } ${addingToWishlist ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <svg
                     className="w-5 h-5"
@@ -446,15 +681,45 @@ const ProductDetail = () => {
                 </button>
               </div>
             </div>
-            <button className="w-full bg-pink-600 text-white py-3 rounded hover:bg-pink-700 text-sm md:text-base">
+
+            <button 
+              className="w-full bg-pink-600 text-white py-3 rounded hover:bg-pink-700 text-sm md:text-base disabled:bg-gray-400"
+              disabled={!selectedSize || !selectedColor}
+            >
               Buy It Now
             </button>
+
+            {/* Additional Product Info */}
+            {currentProduct.code && (
+              <div className="text-sm text-gray-600">
+                <strong>Product Code:</strong> {currentProduct.code}
+              </div>
+            )}
+
+            {/* Stock Information */}
+            {selectedColor && selectedSize && (
+              <div className="text-sm text-gray-600">
+                <strong>Stock:</strong> {
+                  selectedColor.sizeStock?.find(s => s.size === selectedSize)?.stock || 0
+                } units available
+              </div>
+            )}
+
+            {currentProduct.tags && currentProduct.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {currentProduct.tags.map((tag, index) => (
+                  <span key={index} className="text-xs bg-gray-100 px-2 py-1 rounded">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </section>
 
       {/* Similar Products */}
-      {similarProducts.length > 0 && (
+      {filteredSimilarProducts.length > 0 && (
         <section
           ref={similarProductsRef}
           className="similar-products-section py-8 md:py-12 bg-gray-50"
@@ -462,26 +727,19 @@ const ProductDetail = () => {
           <div className="container mx-auto px-4 md:px-6 lg:px-12">
             <h2 className="text-xl md:text-2xl font-bold mb-6 md:mb-8">Similar Products</h2>
             <div className="relative">
-              {similarProducts.length > itemsPerPage && (
+              {filteredSimilarProducts.length > itemsPerPage && (
                 <>
                   <button
                     onClick={prevSimilarProducts}
                     disabled={similarProductsIndex === 0}
-                    className="absolute left-0 top-1/2 -translate-y-1/2 z-20  w-5 lg:w-10 h-10 md:w-fit md:px-2 md:h-14 bg-pink-200 hover:bg-pink-300 disabled:bg-gray-300 
-                    rounded-sm md:rounded-md -translate-x-3 md:translate-x-0"
+                    className="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-5 lg:w-10 h-10 md:w-fit md:px-2 md:h-14 bg-pink-200 hover:bg-pink-300 disabled:bg-gray-300 rounded-sm md:rounded-md -translate-x-3 md:translate-x-0"
                   >
                     <ChevronLeft className="text-white w-5 h-5" />
                   </button>
                   <button
                     onClick={nextSimilarProducts}
-                    disabled={
-                      similarProductsIndex >=
-                      similarProducts.length - itemsPerPage
-                    }
-                    className="absolute right-0 top-1/2 -translate-y-1/2 z-20 
-                        w-5 lg:w-10 h-10 md:w-fit md:px-2 md:h-14 
-                        bg-pink-200 hover:bg-pink-300 disabled:bg-gray-300 
-                        rounded-sm md:rounded-md translate-x-3 md:translate-x-0"
+                    disabled={similarProductsIndex >= filteredSimilarProducts.length - itemsPerPage}
+                    className="absolute right-0 top-1/2 -translate-y-1/2 z-20 w-5 lg:w-10 h-10 md:w-fit md:px-2 md:h-14 bg-pink-200 hover:bg-pink-300 disabled:bg-gray-300 rounded-sm md:rounded-md translate-x-3 md:translate-x-0"
                   >
                     <ChevronRight className="text-white w-5 h-5" />
                   </button>
@@ -489,7 +747,7 @@ const ProductDetail = () => {
               )}
               <div
                 className={
-                  similarProducts.length > itemsPerPage ? "mx-4 lg:mx-12 md:mx-12" : ""
+                  filteredSimilarProducts.length > itemsPerPage ? "mx-4 lg:mx-12 md:mx-12" : ""
                 }
               >
                 <div
@@ -501,13 +759,10 @@ const ProductDetail = () => {
                       : "grid-cols-4"
                   }`}
                 >
-                  {similarProducts
-                    .slice(
-                      similarProductsIndex,
-                      similarProductsIndex + itemsPerPage
-                    )
-                    .map((p) => (
-                      <SimilarProductCard key={p.id} product={p} />
+                  {filteredSimilarProducts
+                    .slice(similarProductsIndex, similarProductsIndex + itemsPerPage)
+                    .map((product) => (
+                      <SimilarProductCard key={product._id} product={product} />
                     ))}
                 </div>
               </div>

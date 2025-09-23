@@ -1,70 +1,292 @@
-//Products.jsx
-
+// src/components/Products.jsx
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation, Link } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
 import { gsap } from 'gsap';
-import infoproducts from './ProductsInfo';
-import {useCart} from "./CartContext";
+import { 
+  getAllProducts, 
+  searchProducts, 
+  getProductsByCategory,
+  getProductsBySubcategory,
+  clearProducts,
+  clearSearchResults,
+  setSearchQuery,
+  getAvailableSizes
+} from '../Redux/slices/productsSlice';
+import { 
+  getCategories, 
+  getCategoryById 
+} from '../Redux/slices/categorySlice';
+import { 
+  getSubcategoriesByCategory, 
+  getSubcategoryById 
+} from '../Redux/slices/subcategorySlice';
+import { addToCart } from '../Redux/slices/cartSlice';
 
-const Products = () => {
+const Products = ({ category: propCategory, subcategory: propSubcategory, title: propTitle }) => {
   const navigate = useNavigate();
-  const { category: urlCategory } = useParams();
-  const { addToCart } = useCart();
+  const dispatch = useDispatch();
+  const { category: urlCategory, subcategory: urlSubcategory } = useParams();
+  const location = useLocation();
+  
+  // Redux state
+  const { 
+    products, 
+    total, 
+    page, 
+    pages,
+    searchResults,
+    searchTotal,
+    searchPage,
+    searchPages,
+    searchQuery,
+    loading, 
+    searchLoading,
+    error,
+    searchError,
+    productSizes
+  } = useSelector(state => state.products);
+
+  const {
+    categories,
+    currentCategory,
+    loading: categoriesLoading,
+    error: categoriesError
+  } = useSelector(state => state.categories);
+
+  const {
+    subcategories,
+    currentSubcategory,
+    loading: subcategoriesLoading,
+    error: subcategoriesError
+  } = useSelector(state => state.subcategories);
+  
+  const currentCategoryName = propCategory || urlCategory;
+  const currentSubcategoryName = propSubcategory || urlSubcategory;
+  
+  // Find category and subcategory by name/slug
+  const categoryConfig = categories.find(cat => 
+    cat.name.toLowerCase().replace(/\s+/g, '-') === currentCategoryName ||
+    cat._id === currentCategoryName
+  );
+  
+  const subcategoryConfig = subcategories.find(sub => 
+    sub.name?.toLowerCase().replace(/\s+/g, '-') === currentSubcategoryName ||
+    sub._id === currentSubcategoryName
+  );
+  
+  const pageTitle = propTitle || 
+    (subcategoryConfig ? subcategoryConfig.name : categoryConfig?.name) || 
+    `${currentCategoryName} Collection`;
   
   const [filters, setFilters] = useState({
-    brand: '',
-    style: '',
     color: '',
-    promotions: '',
-    collection: '',
-    pantyWaist: '',
-    subCategory: ''
+    size: '',
+    priceRange: '',
+    tags: ''
   });
   const [sortBy, setSortBy] = useState('Recommended');
   const [currentPage, setCurrentPage] = useState(1);
-  const [filteredProducts, setFilteredProducts] = useState([]);
-  const [currentCategory, setCurrentCategory] = useState(urlCategory?.toUpperCase() || 'BRAS');
+  const [isSearchMode, setIsSearchMode] = useState(false);
   
   const itemsPerPage = 12;
+  
+  // Get current products based on mode
+  const currentProducts = isSearchMode ? searchResults : products;
+  const currentTotal = isSearchMode ? searchTotal : total;
+  const currentPageNum = isSearchMode ? searchPage : page;
+  const currentTotalPages = isSearchMode ? searchPages : pages;
+  const isLoading = isSearchMode ? searchLoading : loading;
+  const currentError = isSearchMode ? searchError : error;
+  
+  // Load categories on component mount
+  useEffect(() => {
+    if (categories.length === 0) {
+      dispatch(getCategories());
+    }
+  }, [dispatch, categories.length]);
 
-  // Get unique values for filter options based on current category
+  // Load category details when category changes
+  useEffect(() => {
+    if (currentCategoryName && categoryConfig?._id && !currentCategory) {
+      dispatch(getCategoryById(categoryConfig._id));
+    }
+  }, [dispatch, currentCategoryName, categoryConfig, currentCategory]);
+
+  // Load subcategories when category changes
+  useEffect(() => {
+    if (categoryConfig?._id) {
+      dispatch(getSubcategoriesByCategory(categoryConfig._id));
+    }
+  }, [dispatch, categoryConfig]);
+
+  // Load subcategory details when subcategory changes
+  useEffect(() => {
+    if (currentSubcategoryName && subcategoryConfig?._id && !currentSubcategory) {
+      dispatch(getSubcategoryById(subcategoryConfig._id));
+    }
+  }, [dispatch, currentSubcategoryName, subcategoryConfig, currentSubcategory]);
+  
+  // Check for search query in URL params
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const query = urlParams.get('search') || urlParams.get('q');
+    
+    if (query) {
+      setIsSearchMode(true);
+      dispatch(setSearchQuery(query));
+      dispatch(searchProducts({ query, page: 1, limit: itemsPerPage }));
+    } else {
+      setIsSearchMode(false);
+      dispatch(clearSearchResults());
+    }
+  }, [location.search, dispatch]);
+
+  // Load products when component mounts or category changes
+  useEffect(() => {
+    if (!isSearchMode) {
+      if (subcategoryConfig?._id) {
+        // If we have a subcategory ID, get products by subcategory
+        dispatch(getProductsBySubcategory({ 
+          subcategoryId: subcategoryConfig._id, 
+          page: currentPage, 
+          limit: itemsPerPage,
+          isActive: true 
+        }));
+      } else if (categoryConfig?._id) {
+        // If we have a category ID, get products by category
+        dispatch(getProductsByCategory({ 
+          categoryId: categoryConfig._id, 
+          page: currentPage, 
+          limit: itemsPerPage 
+        }));
+      } else if (!currentCategoryName || currentCategoryName === 'all') {
+        // Get all products
+        dispatch(getAllProducts({ page: currentPage, limit: itemsPerPage }));
+      }
+    }
+  }, [dispatch, categoryConfig, subcategoryConfig, currentPage, isSearchMode, itemsPerPage]);
+
+  // Reset filters when category changes
+  useEffect(() => {
+    setFilters({
+      color: '',
+      size: '',
+      priceRange: '',
+      tags: ''
+    });
+    setCurrentPage(1);
+  }, [currentCategoryName, currentSubcategoryName]);
+
+  // GSAP animations
+  useEffect(() => {
+    if (!isLoading && currentProducts.length > 0) {
+      gsap.fromTo('.product-card', 
+        { opacity: 0, y: 30 },
+        { opacity: 1, y: 0, duration: 0.6, stagger: 0.1, ease: 'power2.out' }
+      );
+      
+      const productCards = document.querySelectorAll('.product-card');
+      productCards.forEach(card => {
+        const handleMouseEnter = () => {
+          gsap.to(card, { scale: 1.02, duration: 0.3, ease: 'power2.out' });
+        };
+        const handleMouseLeave = () => {
+          gsap.to(card, { scale: 1, duration: 0.3, ease: 'power2.out' });
+        };
+        
+        card.addEventListener('mouseenter', handleMouseEnter);
+        card.addEventListener('mouseleave', handleMouseLeave);
+        
+        // Cleanup
+        return () => {
+          card.removeEventListener('mouseenter', handleMouseEnter);
+          card.removeEventListener('mouseleave', handleMouseLeave);
+        };
+      });
+    }
+  }, [currentProducts, isLoading]);
+
+  // Get unique filter values from current products
   const getUniqueValues = (key) => {
-    const values = infoproducts
-      .filter(product => product.category === currentCategory)
+    if (!currentProducts || currentProducts.length === 0) return [];
+    
+    const values = currentProducts
       .map(product => {
-        if (key === 'subCategory') return product.subCategory;
-        if (key === 'colors') return product.colors;
-        return product[key];
+        switch(key) {
+          case 'colors':
+            return product.colors?.map(color => color.colorName) || [];
+          case 'sizes':
+            // Get all sizes from all colors
+            const allSizes = [];
+            product.colors?.forEach(color => {
+              color.sizeStock?.forEach(sizeObj => {
+                if (sizeObj.stock > 0) {
+                  allSizes.push(sizeObj.size);
+                }
+              });
+            });
+            return allSizes;
+          case 'tags':
+            return product.tags || [];
+          default:
+            return product[key];
+        }
       })
       .flat()
       .filter(Boolean);
     return [...new Set(values)];
   };
 
-  // Filter and sort products
-  useEffect(() => {
-    // Only show products from the current category
-    let filtered = infoproducts.filter(product => product.category === currentCategory);
-
+  // Filter and sort products locally
+  const filteredProducts = React.useMemo(() => {
+    let filtered = [...currentProducts];
+    
     // Apply filters
     Object.entries(filters).forEach(([key, value]) => {
       if (value) {
-        if (key === 'color') {
-          filtered = filtered.filter(product => 
-            product.colors.some(color => 
-              color.toLowerCase().includes(value.toLowerCase())
-            )
-          );
-        } else if (key === 'subCategory') {
-          filtered = filtered.filter(product => product.subCategory === value);
-        } else {
-          // For other filters, you can add more specific logic here
-          // For now, keeping it simple
+        switch(key) {
+          case 'color':
+            filtered = filtered.filter(product => 
+              product.colors?.some(color => 
+                color.colorName.toLowerCase().includes(value.toLowerCase())
+              )
+            );
+            break;
+          case 'size':
+            filtered = filtered.filter(product => 
+              product.colors?.some(color => 
+                color.sizeStock?.some(sizeObj => 
+                  sizeObj.size.toLowerCase() === value.toLowerCase() && sizeObj.stock > 0
+                )
+              )
+            );
+            break;
+          case 'tags':
+            filtered = filtered.filter(product => 
+              product.tags?.some(tag => 
+                tag.toLowerCase().includes(value.toLowerCase())
+              )
+            );
+            break;
+          case 'priceRange':
+            const [min, max] = value.split('-').map(Number);
+            filtered = filtered.filter(product => {
+              const price = product.price;
+              return price >= min && (max ? price <= max : true);
+            });
+            break;
+          default:
+            if (product[key]) {
+              filtered = filtered.filter(product => 
+                product[key].toLowerCase().includes(value.toLowerCase())
+              );
+            }
         }
       }
     });
-
-    // Sort products
+    
+    // Apply sorting
     switch (sortBy) {
       case 'Price: Low to High':
         filtered.sort((a, b) => a.price - b.price);
@@ -73,58 +295,14 @@ const Products = () => {
         filtered.sort((a, b) => b.price - a.price);
         break;
       case 'Newest First':
-        filtered.sort((a, b) => b.id - a.id);
+        filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         break;
       default:
-        // Keep original order for 'Recommended'
         break;
     }
-
-    setFilteredProducts(filtered);
-    setCurrentPage(1); // Reset to first page when filters change
-  }, [filters, sortBy, currentCategory]);
-
-  // Update category when URL parameter changes
-  useEffect(() => {
-    if (urlCategory) {
-      setCurrentCategory(urlCategory.toUpperCase());
-      // Reset filters when category changes
-      setFilters({
-        brand: '',
-        style: '',
-        color: '',
-        promotions: '',
-        collection: '',
-        pantyWaist: '',
-        subCategory: ''
-      });
-    }
-  }, [urlCategory]);
-
-  // GSAP animations
-  useEffect(() => {
-    gsap.fromTo('.product-card', 
-      { opacity: 0, y: 30 },
-      { opacity: 1, y: 0, duration: 0.6, stagger: 0.1, ease: 'power2.out' }
-    );
-
-    const productCards = document.querySelectorAll('.product-card');
-    productCards.forEach(card => {
-      card.addEventListener('mouseenter', () => {
-        gsap.to(card, { scale: 1.02, duration: 0.3, ease: 'power2.out' });
-      });
-      card.addEventListener('mouseleave', () => {
-        gsap.to(card, { scale: 1, duration: 0.3, ease: 'power2.out' });
-      });
-    });
-
-    return () => {
-      productCards.forEach(card => {
-        card.removeEventListener('mouseenter', () => {});
-        card.removeEventListener('mouseleave', () => {});
-      });
-    };
-  }, [filteredProducts]);
+    
+    return filtered;
+  }, [currentProducts, filters, sortBy]);
 
   const handleFilterChange = (filterType, value) => {
     setFilters(prev => ({
@@ -133,9 +311,102 @@ const Products = () => {
     }));
   };
 
-  const handleBackClick = () => {
-    navigate(-1);
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= currentTotalPages) {
+      setCurrentPage(newPage);
+      
+      if (isSearchMode) {
+        dispatch(searchProducts({ 
+          query: searchQuery, 
+          page: newPage, 
+          limit: itemsPerPage 
+        }));
+      } else if (subcategoryConfig?._id) {
+        dispatch(getProductsBySubcategory({ 
+          subcategoryId: subcategoryConfig._id, 
+          page: newPage, 
+          limit: itemsPerPage,
+          isActive: true 
+        }));
+      } else if (categoryConfig?._id) {
+        dispatch(getProductsByCategory({ 
+          categoryId: categoryConfig._id, 
+          page: newPage, 
+          limit: itemsPerPage 
+        }));
+      } else {
+        dispatch(getAllProducts({ 
+          page: newPage, 
+          limit: itemsPerPage 
+        }));
+      }
+      
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
+
+  const handleAddToCart = async (product, colorName, size = 'm') => {
+    // Immediate UI feedback
+    dispatch(addToCart({ product, colorName, size, quantity: 1 }));
+    
+    // API call in background
+    try {
+      await dispatch(addToCartAsync({ 
+        productId: product._id, 
+        quantity: 1, 
+        size: size.toLowerCase() 
+      })).unwrap();
+      
+      // Optionally show success message
+      console.log('Added to cart successfully');
+    } catch (error) {
+      // Handle error - you might want to show a toast notification
+      console.error('Failed to add to cart:', error);
+      
+      // Optionally revert the local state change
+      dispatch(removeFromCart({ productId: product._id, colorName, size }));
+    }
+  };
+
+  // Helper function to generate category path
+  const getCategoryPath = (category) => {
+    if (!category) return '/products';
+    const categorySlug = category.name.toLowerCase().replace(/\s+/g, '-');
+    return `/products/${categorySlug}`;
+  };
+
+  // Helper function to generate subcategory path
+  const getSubcategoryPath = (category, subcategory) => {
+    if (!category || !subcategory) return '/products';
+    const categorySlug = category.name.toLowerCase().replace(/\s+/g, '-');
+    const subcategorySlug = subcategory.name.toLowerCase().replace(/\s+/g, '-');
+    return `/products/${categorySlug}/${subcategorySlug}`;
+  };
+
+  if (isLoading || categoriesLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-pink-500"></div>
+      </div>
+    );
+  }
+
+  if (currentError || categoriesError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Something went wrong</h2>
+          <p className="text-gray-600 mb-4">{currentError || categoriesError}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-pink-500 text-white rounded hover:bg-pink-600"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const FilterDropdown = ({ label, options, value, onChange }) => (
     <div className="relative flex-1 min-w-[100px] sm:min-w-[120px]">
@@ -159,97 +430,194 @@ const Products = () => {
     </div>
   );
 
-  const ColorCircle = ({ color, size = 'w-3 h-3 sm:w-4 sm:h-4' }) => {
-    const colorMap = {
-      black: '#000000',
-      red: '#FF0000',
-      blue: '#0066CC',
-      navy: '#000080',
-      'navy blue': '#000080',
-      pink: '#FF69B4',
-      white: '#FFFFFF',
-      grey: '#808080',
-      gray: '#808080',
-      beige: '#F5F5DC',
-      nude: '#D4A574',
-      peach: '#FFCBA4',
-      yellow: '#FFFF00',
-      green: '#008000',
-      rose: '#FF007F',
-      wine: '#722F37',
-      'wine red': '#722F37',
-      multi: 'linear-gradient(45deg, #FF0000, #00FF00, #0000FF)'
-    };
-
-    const colorValue = colorMap[color.toLowerCase()] || color;
+  const ColorCircle = ({ color, size = 'w-4 h-4', isSelected = false }) => {
+    // Use hex value if available, otherwise fallback to color name mapping
+    const colorValue = color.colorHex || color.colorName;
     
     return (
       <div 
-        className={`${size} rounded-full border border-gray-300 flex-shrink-0`}
+        className={`${size} rounded-full border-2 flex-shrink-0 ${
+          isSelected ? 'border-gray-800' : 'border-gray-300'
+        }`}
         style={{ 
-          background: colorValue.includes('linear-gradient') ? colorValue : colorValue 
+          backgroundColor: colorValue?.startsWith('#') ? colorValue : colorValue,
+          background: colorValue?.includes('linear-gradient') ? colorValue : undefined
         }}
+        title={color.colorName}
       />
     );
   };
 
   const ProductCard = ({ product }) => {
+    const [currentColorIndex, setCurrentColorIndex] = useState(0);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
-
+    
+    const currentColor = product.colors?.[currentColorIndex];
+    const currentImage = currentColor?.images?.[currentImageIndex];
+    
     const handleProductClick = () => {
-      navigate(`/product/${product.id}`);
+      navigate(`/product/${product._id}`);
       window.scrollTo({top: 30, behavior: "smooth"});
+    };
+
+    const handleColorChange = (colorIndex) => {
+      setCurrentColorIndex(colorIndex);
+      setCurrentImageIndex(0); // Reset image index when color changes
     };
 
     const discount = product.originalPrice 
       ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
       : 0;
 
+    // Get all available sizes across all colors
+    const getAllAvailableSizes = () => {
+      const sizes = new Set();
+      product.colors?.forEach(color => {
+        color.sizeStock?.forEach(sizeObj => {
+          if (sizeObj.stock > 0) {
+            sizes.add(sizeObj.size);
+          }
+        });
+      });
+      return Array.from(sizes).sort();
+    };
+
     return (
       <div 
-        className="product-card bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-shadow duration-300 cursor-pointer"
+        className="product-card bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer group"
         onClick={handleProductClick}
       >
-        <div className="relative aspect-[3/4] bg-gray-100 overflow-hidden">
+        <div className="relative aspect-[3/4] bg-gray-50 overflow-hidden">
           <img 
-            src={product.images[currentImageIndex]} 
+            src={currentImage || product.colors?.[0]?.images?.[0]} 
             alt={product.name}
-            className="w-full h-full object-cover transition-opacity duration-300"
-            onMouseEnter={() => product.images[1] && setCurrentImageIndex(1)}
+            className="w-full h-full object-cover transition-all duration-500 group-hover:scale-105"
+            onMouseEnter={() => {
+              if (currentColor?.images?.length > 1) {
+                setCurrentImageIndex(1);
+              }
+            }}
             onMouseLeave={() => setCurrentImageIndex(0)}
           />
           {discount > 0 && (
-            <span className="absolute top-1 sm:top-2 left-1 sm:left-2 bg-pink-500 text-white text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded">
+            <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded">
               {discount}% OFF
             </span>
           )}
+          
+          {/* Product Code Badge */}
+          {product.code && (
+            <div className="absolute top-2 right-2 bg-black text-white text-xs px-2 py-1 rounded">
+              {product.code}
+            </div>
+          )}
+
+          {/* Color Selection Dots */}
+          {product.colors && product.colors.length > 1 && (
+            <div className="absolute bottom-2 left-2 flex gap-1">
+              {product.colors.slice(0, 5).map((color, index) => (
+                <button
+                  key={color._id || index}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleColorChange(index);
+                  }}
+                  className="hover:scale-110 transition-transform"
+                >
+                  <ColorCircle 
+                    color={color} 
+                    size="w-3 h-3" 
+                    isSelected={currentColorIndex === index}
+                  />
+                </button>
+              ))}
+              {product.colors.length > 5 && (
+                <span className="text-white text-xs bg-black bg-opacity-50 px-1 rounded">
+                  +{product.colors.length - 5}
+                </span>
+              )}
+            </div>
+          )}
         </div>
         
-        <div className="p-2 sm:p-3 md:p-4">
-          <div className="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
-            <div className="flex gap-0.5 sm:gap-1">
-              {product.colors.slice(0, 4).map((color, index) => (
-                <ColorCircle key={index} color={color} />
+        <div className="p-3">
+          {/* Brand/Category tags */}
+          {product.tags && product.tags.length > 0 && (
+            <div className="flex gap-1 mb-2">
+              {product.tags.slice(0, 2).map((tag, index) => (
+                <span 
+                  key={index} 
+                  className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full"
+                >
+                  {tag}
+                </span>
               ))}
             </div>
-            {product.colors.length > 4 && (
-              <span className="text-gray-500 text-xs sm:text-sm">+{product.colors.length - 4}</span>
+          )}
+          
+          {/* Product Name */}
+          <h3 className="text-gray-900 font-medium mb-2 text-sm line-clamp-2 min-h-[2.5rem]">
+            {product.name}
+          </h3>
+          
+          {/* Price Section */}
+          <div className="flex items-baseline gap-2 mb-2">
+            <span className="text-lg font-bold text-gray-900">
+              ₹{product.price?.toLocaleString('en-IN')}
+            </span>
+            {product.originalPrice && product.originalPrice > product.price && (
+              <span className="text-sm text-gray-500 line-through">
+                ₹{product.originalPrice?.toLocaleString('en-IN')}
+              </span>
             )}
           </div>
           
-          <h3 className="text-gray-800 font-medium mb-1 text-xs sm:text-sm md:text-base line-clamp-2">{product.name}</h3>
-          
-          <div className="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
-            <span className="text-sm sm:text-lg font-bold text-gray-900">₹{product.price}</span>
-            {product.originalPrice && (
-              <span className="text-xs sm:text-sm text-gray-500 line-through">₹{product.originalPrice}</span>
-            )}
-          </div>
-          
-          <p className="text-gray-600 text-xs mb-1 line-clamp-1">{product.subCategory}</p>
-          
+          {/* Discount Info */}
           {discount > 0 && (
-            <p className="text-pink-600 text-xs sm:text-sm font-medium">Save ₹{product.originalPrice - product.price}</p>
+            <p className="text-green-600 text-sm font-medium mb-2">
+              Save ₹{(product.originalPrice - product.price)?.toLocaleString('en-IN')}
+            </p>
+          )}
+          
+          {/* Available Colors */}
+          <div className="flex items-center gap-1 mb-2">
+            <span className="text-xs text-gray-500">{product.colors?.length} Color{product.colors?.length > 1 ? 's' : ''}:</span>
+            <div className="flex gap-1">
+              {product.colors?.slice(0, 4).map((color, index) => (
+                <ColorCircle 
+                  key={color._id || index}
+                  color={color} 
+                  size="w-3 h-3"
+                />
+              ))}
+              {product.colors?.length > 4 && (
+                <span className="text-xs text-gray-500">+{product.colors.length - 4}</span>
+              )}
+            </div>
+          </div>
+
+          {/* Available Sizes */}
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-gray-500">Sizes:</span>
+            <div className="flex gap-1">
+              {getAllAvailableSizes().slice(0, 4).map((size, index) => (
+                <span key={index} className="text-xs bg-gray-200 px-1.5 py-0.5 rounded">
+                  {size.toUpperCase()}
+                </span>
+              ))}
+              {getAllAvailableSizes().length > 4 && (
+                <span className="text-xs text-gray-500">+{getAllAvailableSizes().length - 4}</span>
+              )}
+            </div>
+          </div>
+
+          {/* Current Color Name Display */}
+          {currentColor && (
+            <div className="mt-2 pt-2 border-t border-gray-100">
+              <span className="text-xs text-gray-600">
+                Selected: <span className="font-medium">{currentColor.colorName}</span>
+              </span>
+            </div>
           )}
         </div>
       </div>
@@ -257,75 +625,68 @@ const Products = () => {
   };
 
   const Pagination = () => {
-    const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
-    
-    const handlePageChange = (page) => {
-      if (page >= 1 && page <= totalPages) {
-        setCurrentPage(page);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
+    const handlePageChangeLocal = (newPage) => {
+      handlePageChange(newPage);
     };
 
     const getVisiblePages = () => {
-      const delta = 1; // Reduced for mobile
+      const delta = 1;
       const range = [];
       const rangeWithDots = [];
-
-      for (let i = Math.max(2, currentPage - delta); i <= Math.min(totalPages - 1, currentPage + delta); i++) {
+      
+      for (let i = Math.max(2, currentPageNum - delta); i <= Math.min(currentTotalPages - 1, currentPageNum + delta); i++) {
         range.push(i);
       }
-
-      if (currentPage - delta > 2) {
+      
+      if (currentPageNum - delta > 2) {
         rangeWithDots.push(1, '...');
-      } else if (totalPages > 1) {
+      } else if (currentTotalPages > 1) {
         rangeWithDots.push(1);
       }
-
+      
       rangeWithDots.push(...range);
-
-      if (currentPage + delta < totalPages - 1) {
-        rangeWithDots.push('...', totalPages);
-      } else if (totalPages > 1 && !rangeWithDots.includes(totalPages)) {
-        rangeWithDots.push(totalPages);
+      
+      if (currentPageNum + delta < currentTotalPages - 1) {
+        rangeWithDots.push('...', currentTotalPages);
+      } else if (currentTotalPages > 1 && !rangeWithDots.includes(currentTotalPages)) {
+        rangeWithDots.push(currentTotalPages);
       }
-
+      
       return rangeWithDots;
     };
 
-    if (totalPages <= 1) return null;
+    if (currentTotalPages <= 1) return null;
 
     return (
       <div className="flex items-center justify-center gap-1 sm:gap-2 mt-8 sm:mt-12 font-bold" style={{fontFamily:"Montserrat"}}>
         <button
-          onClick={() => handlePageChange(currentPage - 1)}
-          disabled={currentPage === 1}
+          onClick={() => handlePageChangeLocal(currentPageNum - 1)}
+          disabled={currentPageNum === 1}
           className="px-2 sm:px-3 py-1 sm:py-2 text-sm sm:text-base text-gray-950 hover:text-gray-900 disabled:text-gray-300 disabled:cursor-not-allowed"
         >
           Back
         </button>
-
-        {getVisiblePages().map((page, index) => (
+        {getVisiblePages().map((pageNum, index) => (
           <div key={index}>
-            {page === '...' ? (
+            {pageNum === '...' ? (
               <span className="px-2 sm:px-3 py-1 sm:py-2 text-sm sm:text-base text-gray-500">...</span>
             ) : (
               <button
-                onClick={() => handlePageChange(page)}
+                onClick={() => handlePageChangeLocal(pageNum)}
                 className={`px-2 sm:px-3 py-1 sm:py-2 text-sm sm:text-base border rounded-xl transition-all ${
-                  currentPage === page
+                  currentPageNum === pageNum
                     ? 'border-gray-900 bg-white text-gray-900 transform -translate-y-1 shadow-md'
                     : 'border-gray-300 bg-white text-gray-600 hover:border-gray-500 hover:text-gray-900'
                 }`}
               >
-                {page}
+                {pageNum}
               </button>
             )}
           </div>
         ))}
-
         <button
-          onClick={() => handlePageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
+          onClick={() => handlePageChangeLocal(currentPageNum + 1)}
+          disabled={currentPageNum === currentTotalPages}
           className="px-2 sm:px-3 py-1 sm:py-2 text-sm sm:text-base text-gray-950 hover:text-gray-900 disabled:text-gray-300 disabled:cursor-not-allowed"
         >
           Next
@@ -334,76 +695,115 @@ const Products = () => {
     );
   };
 
-  // Get current page products
-  const getCurrentPageProducts = () => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return filteredProducts.slice(startIndex, endIndex);
-  };
-
-  // Category display names
-  const categoryDisplayNames = {
-    'BRAS': 'Bras',
-    'PANTIES': 'Panties', 
-    'LINGERIE': 'Sleep & Lingerie',
-    'APPAREL': 'Apparel',
-    'BEAUTY': 'Beauty',
-    'CLEARANCE': 'Clearance'
-  };
-
   return (
     <div className="min-h-screen bg-white">
       {/* Breadcrumb */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3">
-          <div className="flex items-center text-xs sm:text-sm text-gray-600">
-            <button onClick={handleBackClick} className="hover:text-gray-900 flex items-center">
-              <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"/>
-              </svg>
-              Back
-            </button>
-            <span className="mx-1 sm:mx-2">/</span>
-            <span className="text-gray-900">{categoryDisplayNames[currentCategory] || currentCategory}</span>
-          </div>
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <nav className="flex items-center space-x-2 text-sm text-gray-500">
+            <Link to="/" className="hover:text-pink-600 transition-colors">Home</Link>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            {isSearchMode ? (
+              <span className="text-gray-900 font-medium">Search Results for "{searchQuery}"</span>
+            ) : (
+              <>
+                <Link 
+                  to={getCategoryPath(categoryConfig)}
+                  className="hover:text-pink-600 transition-colors"
+                >
+                  {categoryConfig?.name || currentCategoryName || 'Products'}
+                </Link>
+                {currentSubcategoryName && subcategoryConfig && (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                    <span className="text-gray-900 font-medium">
+                      {subcategoryConfig.name || currentSubcategoryName}
+                    </span>
+                  </>
+                )}
+              </>
+            )}
+          </nav>
         </div>
       </div>
 
+      {/* Subcategory Navigation */}
+      {!currentSubcategoryName && !isSearchMode && subcategories && subcategories.length > 0 && (
+        <div className="bg-white border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex flex-wrap justify-center gap-4">
+              <Link
+                to={getCategoryPath(categoryConfig)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200 ${
+                  !currentSubcategoryName 
+                    ? "bg-pink-500 text-white" 
+                    : "bg-gray-100 text-gray-700 hover:bg-pink-100 hover:text-pink-600"
+                }`}
+              >
+                All {categoryConfig?.name || 'Products'}
+              </Link>
+              {subcategories.map((subcategory) => (
+                <Link
+                  key={subcategory._id}
+                  to={getSubcategoryPath(categoryConfig, subcategory)}
+                  className="px-4 py-2 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-pink-100 hover:text-pink-600 transition-colors duration-200"
+                >
+                  {subcategory.name}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
-        {/* Page Title */}
+        {/* Page Header */}
         <div className="mb-4 sm:mb-6">
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">
-            {categoryDisplayNames[currentCategory] || currentCategory}
+            {isSearchMode ? `Search Results for "${searchQuery}"` : pageTitle}
             <span className="text-gray-500 font-normal text-sm sm:text-base"> ({filteredProducts.length} items)</span>
           </h1>
+          {subcategoryConfig?.description && (
+            <p className="text-gray-600 text-sm mt-2">{subcategoryConfig.description}</p>
+          )}
         </div>
 
-        {/* Filters */}
+        {/* Filters and Sorting */}
         <div className="mb-4 sm:mb-6">
-          {/* Mobile Filter Layout */}
+          {/* Mobile Filters */}
           <div className="block md:hidden">
             <span className="font-bold text-lg text-gray-900 block mb-2">FILTERS</span>
             <div className="bg-white rounded-sm border flex-1 p-3">
               <div className="grid grid-cols-2 gap-2 mb-3">
-                <FilterDropdown 
-                  label="Sub Category" 
-                  options={getUniqueValues('subCategory')}
-                  value={filters.subCategory}
-                  onChange={(value) => handleFilterChange('subCategory', value)}
-                />
                 <FilterDropdown 
                   label="Color" 
                   options={getUniqueValues('colors')}
                   value={filters.color}
                   onChange={(value) => handleFilterChange('color', value)}
                 />
+                <FilterDropdown 
+                  label="Size" 
+                  options={getUniqueValues('sizes')}
+                  value={filters.size}
+                  onChange={(value) => handleFilterChange('size', value)}
+                />
+                <FilterDropdown 
+                  label="Tags" 
+                  options={getUniqueValues('tags')}
+                  value={filters.tags}
+                  onChange={(value) => handleFilterChange('tags', value)}
+                />
+                <FilterDropdown 
+                  label="Price Range" 
+                  options={['0-500', '500-1000', '1000-2000', '2000-5000', '5000+']}
+                  value={filters.priceRange}
+                  onChange={(value) => handleFilterChange('priceRange', value)}
+                />
               </div>
-              <FilterDropdown 
-                label="Size" 
-                options={getUniqueValues('sizes')}
-                value={filters.size}
-                onChange={(value) => handleFilterChange('size', value)}
-              />
             </div>
             <div className="flex items-center justify-between mt-3">
               <span className="text-gray-700 text-sm font-medium">SORT BY</span>
@@ -420,27 +820,16 @@ const Products = () => {
                   <option value="Price: High to Low">Price: High to Low</option>
                   <option value="Newest First">Newest First</option>
                 </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-gray-700">
-                  <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                    <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/>
-                  </svg>
-                </div>
               </div>
             </div>
           </div>
 
-          {/* Desktop Filter Layout */}
+          {/* Desktop Filters */}
           <div className="hidden md:block">
             <div className="flex items-center">
               <span className="font-bold text-l lg:text-2xl pr-2 text-gray-900">FILTERS</span>
-              <div className="bg-white rounded-sm border-1 flex-1">
+              <div className="bg-white rounded-sm border-2 flex-1">
                 <div className="flex justify-evenly flex-wrap gap-2">
-                  <FilterDropdown 
-                    label="Sub Category" 
-                    options={getUniqueValues('subCategory')}
-                    value={filters.subCategory}
-                    onChange={(value) => handleFilterChange('subCategory', value)}
-                  />
                   <FilterDropdown 
                     label="Color" 
                     options={getUniqueValues('colors')}
@@ -452,6 +841,18 @@ const Products = () => {
                     options={getUniqueValues('sizes')}
                     value={filters.size}
                     onChange={(value) => handleFilterChange('size', value)}
+                  />
+                  <FilterDropdown 
+                    label="Tags" 
+                    options={getUniqueValues('tags')}
+                    value={filters.tags}
+                    onChange={(value) => handleFilterChange('tags', value)}
+                  />
+                  <FilterDropdown 
+                    label="Price Range" 
+                    options={['0-500', '500-1000', '1000-2000', '2000-5000', '5000+']}
+                    value={filters.priceRange}
+                    onChange={(value) => handleFilterChange('priceRange', value)}
                   />
                 </div>
               </div>
@@ -473,11 +874,6 @@ const Products = () => {
                     <option value="Price: High to Low">Price: High to Low</option>
                     <option value="Newest First">Newest First</option>
                   </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                      <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/>
-                    </svg>
-                  </div>
                 </div>
               </div>
             </div>
@@ -486,29 +882,41 @@ const Products = () => {
 
         {/* Products Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-          {getCurrentPageProducts().map((product) => (
-            <ProductCard key={product.id} product={product} />
+          {filteredProducts.map((product) => (
+            <ProductCard key={product._id} product={product} />
           ))}
         </div>
 
         {/* No products message */}
-        {filteredProducts.length === 0 && (
+        {filteredProducts.length === 0 && !isLoading && (
           <div className="text-center py-8 sm:py-12">
-            <p className="text-gray-500 text-base sm:text-lg">No products found matching your filters.</p>
-            <button 
-              onClick={() => setFilters({
-                brand: '',
-                style: '',
-                color: '',
-                promotions: '',
-                collection: '',
-                pantyWaist: '',
-                subCategory: ''
-              })}
-              className="mt-4 px-4 py-2 bg-gray-900 text-white rounded hover:bg-gray-800 transition-colors text-sm sm:text-base"
-            >
-              Clear Filters
-            </button>
+            <div className="max-w-md mx-auto">
+              <svg className="mx-auto h-24 w-24 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+              </svg>
+              <h3 className="text-xl font-semibold text-gray-600 mb-2">
+                No products found
+              </h3>
+              <p className="text-gray-500 mb-4">
+                Try adjusting your filters or check back later for new arrivals.
+              </p>
+              <button 
+                onClick={() => {
+                  setFilters({
+                    color: '',
+                    size: '',
+                    priceRange: '',
+                    tags: ''
+                  });
+                  if (isSearchMode) {
+                    navigate('/products');
+                  }
+                }}
+                className="inline-flex items-center px-4 py-2 bg-pink-500 text-white rounded-md hover:bg-pink-600 transition-colors duration-200 mr-2"
+              >
+                {isSearchMode ? 'View All Products' : 'Clear Filters'}
+              </button>
+            </div>
           </div>
         )}
 

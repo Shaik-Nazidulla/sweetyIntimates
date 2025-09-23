@@ -1,13 +1,13 @@
-// wishlist.jsx
+//src/components/wishlist.jsx - Updated for new API integration
 import { useWishlist } from "./WishlistContext";
-import { useCart } from "./CartContext";
+import { useCart } from "../hooks/useCart";
 import infoproducts from "./ProductsInfo";
 import { useNavigate } from "react-router-dom";
 import React, { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 
 // ⭐ Reusable Wishlist Item Component
-const WishlistItem = ({ item, removeFromWishlist, addToCart, renderStars }) => {
+const WishlistItem = ({ item, removeFromWishlist, addToCart, moveToCart, renderStars }) => {
   const itemRef = useRef(null);
   const navigate = useNavigate();
 
@@ -43,19 +43,23 @@ const WishlistItem = ({ item, removeFromWishlist, addToCart, renderStars }) => {
   }, []);
 
   const goToDetail = () => {
-    navigate(`/product/${item.id}`);
+    navigate(`/product/${item.id || item._id}`);
   };
 
-  const handleAddToCart = () => {
-    addToCart(item);
-    // Show feedback animation
-    const button = itemRef.current.querySelector('.add-to-cart-btn');
-    gsap.to(button, {
-      scale: 0.95,
-      duration: 0.1,
-      yoyo: true,
-      repeat: 1,
-    });
+  const handleAddToCart = async () => {
+    const result = await addToCart(item);
+    if (result && result.success) {
+      // Show feedback animation
+      const button = itemRef.current?.querySelector('.add-to-cart-btn');
+      if (button) {
+        gsap.to(button, {
+          scale: 0.95,
+          duration: 0.1,
+          yoyo: true,
+          repeat: 1,
+        });
+      }
+    }
   };
 
   const handleRemove = () => {
@@ -65,9 +69,26 @@ const WishlistItem = ({ item, removeFromWishlist, addToCart, renderStars }) => {
       opacity: 0,
       duration: 0.3,
       ease: "power2.in",
-      onComplete: () => removeFromWishlist(item.id)
+      onComplete: () => removeFromWishlist(item.id || item._id)
     });
   };
+
+  const handleMoveToCart = async () => {
+    const result = await moveToCart(item.id || item._id);
+    if (result && result.success) {
+      // Animate removal since item was moved
+      gsap.to(itemRef.current, {
+        x: 100,
+        opacity: 0,
+        duration: 0.3,
+        ease: "power2.in"
+      });
+    }
+  };
+
+  // Get price - use priceWhenAdded if available, fallback to current price
+  const displayPrice = item.priceWhenAdded || item.price;
+  const originalPrice = item.originalPrice;
 
   return (
     <div 
@@ -76,7 +97,7 @@ const WishlistItem = ({ item, removeFromWishlist, addToCart, renderStars }) => {
     >
       <img
         src={item.images ? item.images[0] : item.image}
-        alt={item.description}
+        alt={item.description || item.name}
         className="w-24 h-24 sm:w-32 sm:h-32 rounded-lg object-cover flex-shrink-0 cursor-pointer"
         onClick={goToDetail}
       />
@@ -97,25 +118,32 @@ const WishlistItem = ({ item, removeFromWishlist, addToCart, renderStars }) => {
         {/* Price Section for Mobile */}
         <div className="flex items-center gap-2 mb-3">
           <div className="text-lg font-semibold text-gray-800">
-            ₹{item.price.toLocaleString()}
+            ₹{displayPrice ? displayPrice.toLocaleString() : 'N/A'}
           </div>
-          {item.originalPrice && (
+          {originalPrice && (
             <div className="text-sm text-gray-500 line-through">
-              ₹{item.originalPrice.toLocaleString()}
+              ₹{originalPrice.toLocaleString()}
             </div>
           )}
-          {(item.discount || item.originalPrice) && (
+          {(item.discount || originalPrice) && displayPrice && (
             <div className="text-sm text-pink-600 font-semibold">
-              ({item.discount || Math.round(((item.originalPrice - item.price) / item.originalPrice) * 100)}% off)
+              ({item.discount || Math.round(((originalPrice - displayPrice) / originalPrice) * 100)}% off)
             </div>
           )}
         </div>
+
+        {/* Added date info */}
+        {item.addedAt && (
+          <div className="text-xs text-gray-400 mb-2">
+            Added on {new Date(item.addedAt).toLocaleDateString()}
+          </div>
+        )}
 
         {/* Status for Mobile */}
         <div className="text-xs text-green-600 font-medium mb-3">
           ✓ In Stock • FREE delivery
         </div>
-        {(item.discount || item.originalPrice) && (
+        {(item.discount || originalPrice) && (
           <div className="bg-pink-600 text-white text-xs px-2 py-1 rounded mb-3 inline-block">
             Limited time deal
           </div>
@@ -135,6 +163,14 @@ const WishlistItem = ({ item, removeFromWishlist, addToCart, renderStars }) => {
           >
             Remove
           </button>
+          {moveToCart && (
+            <button
+              className="bg-green-600 text-white py-2 px-4 rounded-2xl text-sm font-medium hover:bg-green-700 transition-colors"
+              onClick={handleMoveToCart}
+            >
+              Move to Cart
+            </button>
+          )}
           <button 
             className="text-pink-600 hover:underline text-sm"
             onClick={goToDetail}
@@ -162,19 +198,26 @@ const WishlistItem = ({ item, removeFromWishlist, addToCart, renderStars }) => {
           {/* Price Section */}
           <div className="flex items-center gap-2 mb-3">
             <div className="text-lg font-semibold text-gray-800">
-              ₹{item.price.toLocaleString()}
+              ₹{displayPrice ? displayPrice.toLocaleString() : 'N/A'}
             </div>
-            {item.originalPrice && (
+            {originalPrice && (
               <div className="text-sm text-gray-500 line-through">
-                ₹{item.originalPrice.toLocaleString()}
+                ₹{originalPrice.toLocaleString()}
               </div>
             )}
-            {(item.discount || item.originalPrice) && (
+            {(item.discount || originalPrice) && displayPrice && (
               <div className="text-sm text-pink-600 font-semibold">
-                ({item.discount || Math.round(((item.originalPrice - item.price) / item.originalPrice) * 100)}% off)
+                ({item.discount || Math.round(((originalPrice - displayPrice) / originalPrice) * 100)}% off)
               </div>
             )}
           </div>
+
+          {/* Added date info */}
+          {item.addedAt && (
+            <div className="text-xs text-gray-400 mb-3">
+              Added on {new Date(item.addedAt).toLocaleDateString()}
+            </div>
+          )}
 
           {/* Action Buttons */}
           <div className="flex gap-3 flex-wrap">
@@ -190,6 +233,14 @@ const WishlistItem = ({ item, removeFromWishlist, addToCart, renderStars }) => {
             >
               Remove
             </button>
+            {moveToCart && (
+              <button
+                className="bg-green-600 text-white py-2 px-4 rounded-2xl text-sm font-medium hover:bg-green-700 transition-colors"
+                onClick={handleMoveToCart}
+              >
+                Move to Cart
+              </button>
+            )}
             <button 
               className="text-pink-600 hover:underline text-sm"
               onClick={goToDetail}
@@ -207,7 +258,7 @@ const WishlistItem = ({ item, removeFromWishlist, addToCart, renderStars }) => {
           <div className="text-xs text-gray-500">
             FREE delivery
           </div>
-          {(item.discount || item.originalPrice) && (
+          {(item.discount || originalPrice) && (
             <div className="bg-pink-600 text-white text-xs px-2 py-1 rounded mt-2 inline-block">
               Limited time deal
             </div>
@@ -309,25 +360,92 @@ const RecommendationItem = ({ item, addToCart, addToWishlist, renderStars }) => 
 };
 
 const Wishlist = () => {
-  const { wishlistItems, removeFromWishlist, addToWishlist } = useWishlist();
-  const { addToCart } = useCart();
+  const { 
+    wishlistItems, 
+    removeFromWishlist, 
+    addToWishlist,
+    moveToCart,
+    moveAllToCart,
+    clearWishlist,
+    loading,
+    isWishlistEmpty,
+    count,
+    isAuthenticated
+  } = useWishlist();
+  
+  const { addItemToCart } = useCart();
   const containerRef = useRef(null);
   
   // Recommendations based on wishlist or popular products
   const recommendations = infoproducts
-    .filter(product => !wishlistItems.find(item => item.id === product.id))
+    .filter(product => !wishlistItems.find(item => (item.id || item._id) === product.id))
     .slice(0, 6);
 
   const renderStars = (rating) => "★".repeat(rating);
-  const getTotalItems = () => wishlistItems.length;
+  const getTotalItems = () => count || wishlistItems.length;
 
   useEffect(() => {
     // Initial animation for the entire container
-    gsap.fromTo(containerRef.current,
-      { opacity: 0, y: 20 },
-      { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }
-    );
+    if (containerRef.current) {
+      gsap.fromTo(containerRef.current,
+        { opacity: 0, y: 20 },
+        { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }
+      );
+    }
   }, []);
+
+  // Handle add all to cart
+  const handleAddAllToCart = async () => {
+    if (wishlistItems.length === 0) return;
+    
+    // Use moveAllToCart which handles API calls and removes items from wishlist
+    await moveAllToCart();
+  };
+
+  // Handle clear wishlist
+  const handleClearWishlist = async () => {
+    if (wishlistItems.length > 0 && confirm('Are you sure you want to clear your entire wishlist?')) {
+      await clearWishlist();
+    }
+  };
+
+  // Show loading state for initial load
+  if (loading && wishlistItems.length === 0 && isAuthenticated) {
+    return (
+      <div className="bg-gray-100 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-4xl text-gray-300 mb-4 animate-pulse">♡</div>
+          <p className="text-gray-500">Loading your wishlist...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login prompt if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="bg-gray-100 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl text-gray-300 mb-4">♡</div>
+          <h3 className="text-xl font-semibold text-gray-600 mb-2">
+            Please login to view your wishlist
+          </h3>
+          <p className="text-gray-500 mb-6">
+            Create an account or sign in to save your favorite items
+          </p>
+          <button
+            className="bg-pink-600 text-white py-3 px-6 rounded-2xl font-medium hover:bg-pink-700 transition-colors"
+            onClick={() => {
+              // You can trigger your login modal here or redirect to login page
+              console.log('Trigger login modal');
+            }}
+          >
+            Sign In
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gray-100 min-h-screen">
@@ -345,20 +463,14 @@ const Wishlist = () => {
             <div className="flex flex-col gap-3">
               <button 
                 className="w-full bg-pink-600 text-white py-3 rounded-3xl text-sm font-semibold hover:bg-pink-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={() => {
-                  wishlistItems.forEach(item => addToCart(item));
-                }}
+                onClick={handleAddAllToCart}
                 disabled={wishlistItems.length === 0}
               >
-                Add All to Cart
+                Move All to Cart
               </button>
               <button 
                 className="w-full border border-pink-600 text-pink-600 py-3 rounded-3xl text-sm font-semibold hover:bg-pink-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={() => {
-                  if (wishlistItems.length > 0 && confirm('Are you sure you want to clear your entire wishlist?')) {
-                    wishlistItems.forEach(item => removeFromWishlist(item.id));
-                  }
-                }}
+                onClick={handleClearWishlist}
                 disabled={wishlistItems.length === 0}
               >
                 Clear Wishlist
@@ -398,10 +510,11 @@ const Wishlist = () => {
               ) : (
                 wishlistItems.map((item) => (
                   <WishlistItem
-                    key={item.id}
+                    key={item._id || item.id}
                     item={item}
                     removeFromWishlist={removeFromWishlist}
-                    addToCart={addToCart}
+                    addToCart={addItemToCart}
+                    moveToCart={moveToCart}
                     renderStars={renderStars}
                   />
                 ))
@@ -419,7 +532,7 @@ const Wishlist = () => {
                 <RecommendationItem
                   key={item.id}
                   item={item}
-                  addToCart={addToCart}
+                  addToCart={addItemToCart}
                   addToWishlist={addToWishlist}
                   renderStars={renderStars}
                 />
@@ -467,10 +580,11 @@ const Wishlist = () => {
               ) : (
                 wishlistItems.map((item) => (
                   <WishlistItem
-                    key={item.id}
+                    key={item._id || item.id}
                     item={item}
                     removeFromWishlist={removeFromWishlist}
-                    addToCart={addToCart}
+                    addToCart={addItemToCart}
+                    moveToCart={moveToCart}
                     renderStars={renderStars}
                   />
                 ))
@@ -488,20 +602,14 @@ const Wishlist = () => {
               <div className="flex flex-col gap-3">
                 <button 
                   className="w-full bg-pink-600 text-white py-3 rounded-3xl text-sm font-semibold hover:bg-pink-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  onClick={() => {
-                    wishlistItems.forEach(item => addToCart(item));
-                  }}
+                  onClick={handleAddAllToCart}
                   disabled={wishlistItems.length === 0}
                 >
-                  Add All to Cart
+                  Move All to Cart
                 </button>
                 <button 
                   className="w-full border border-pink-600 text-pink-600 py-3 rounded-3xl text-sm font-semibold hover:bg-pink-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  onClick={() => {
-                    if (wishlistItems.length > 0 && confirm('Are you sure you want to clear your entire wishlist?')) {
-                      wishlistItems.forEach(item => removeFromWishlist(item.id));
-                    }
-                  }}
+                  onClick={handleClearWishlist}
                   disabled={wishlistItems.length === 0}
                 >
                   Clear Wishlist
@@ -519,7 +627,7 @@ const Wishlist = () => {
                   <RecommendationItem
                     key={item.id}
                     item={item}
-                    addToCart={addToCart}
+                    addToCart={addItemToCart}
                     addToWishlist={addToWishlist}
                     renderStars={renderStars}
                   />
