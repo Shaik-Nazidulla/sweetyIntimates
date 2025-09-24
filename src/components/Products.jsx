@@ -437,23 +437,22 @@ const Products = ({ category: propCategory, subcategory: propSubcategory, title:
     </div>
   );
 
-  const ColorCircle = ({ color, size = 'w-4 h-4', isSelected = false }) => {
-    // Use hex value if available, otherwise fallback to color name mapping
-    const colorValue = color.colorHex || color.colorName;
-    
-    return (
-      <div 
-        className={`${size} rounded-full border-2 flex-shrink-0 ${
-          isSelected ? 'border-gray-800' : 'border-gray-300'
-        }`}
-        style={{ 
-          backgroundColor: colorValue?.startsWith('#') ? colorValue : colorValue,
-          background: colorValue?.includes('linear-gradient') ? colorValue : undefined
-        }}
-        title={color.colorName}
-      />
-    );
-  };
+  const ColorCircle = ({ color, size = 'w-6 h-6', isSelected = false }) => {
+  // Use colorHex if available, otherwise default to a neutral color
+  const colorValue = color.colorHex || '#CCCCCC';
+  
+  return (
+    <div 
+      className={`${size} rounded-full border-2 flex-shrink-0 ${
+        isSelected ? 'border-gray-800' : 'border-gray-300'
+      }`}
+      style={{ 
+        backgroundColor: colorValue
+      }}
+      title={color.colorName}
+    />
+  );
+};
 
   const ProductCard = ({ product }) => {
     const [currentColorIndex, setCurrentColorIndex] = useState(0);
@@ -496,7 +495,6 @@ const Products = ({ category: propCategory, subcategory: propSubcategory, title:
         </div>
         
         <div className="p-3">
-          {/* Product Info Flow: Colors -> Category -> Product Name -> Price */}
           
           {/* 1. Available Colors Display */}
           <div className="flex items-center gap-1 mb-2">
@@ -512,7 +510,7 @@ const Products = ({ category: propCategory, subcategory: propSubcategory, title:
                 >
                   <ColorCircle 
                     color={color} 
-                    size="w-3 h-3" 
+                    size="w-6 h-6" 
                     isSelected={currentColorIndex === index}
                   />
                 </button>

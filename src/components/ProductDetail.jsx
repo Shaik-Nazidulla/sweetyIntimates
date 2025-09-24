@@ -1,4 +1,4 @@
-// ProductDetail.jsx - Updated for new API integration
+// ProductDetail.jsx - Fixed version
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useSelector, useDispatch } from 'react-redux';
@@ -11,6 +11,8 @@ import {
   getAvailableSizes,
   clearCurrentProduct 
 } from '../Redux/slices/productsSlice';
+import { getCategories } from '../Redux/slices/categorySlice';
+import { getSubcategoriesByCategory } from '../Redux/slices/subcategorySlice';
 import { useCart } from '../components/CartContext';
 import { useWishlist } from '../components/WishlistContext';
 
@@ -35,6 +37,10 @@ const ProductDetail = () => {
     sizesLoading
   } = useSelector(state => state.products);
 
+  // Categories and subcategories for breadcrumbs
+  const { categories } = useSelector(state => state.categories);
+  const { subcategories } = useSelector(state => state.subcategories);
+
   // Get authentication state
   const { isAuthenticated } = useSelector(state => state.auth);
 
@@ -58,6 +64,35 @@ const ProductDetail = () => {
   // Check if product is in wishlist using the hook
   const isInWishlist = currentProduct ? isItemInWishlist(currentProduct._id) : false;
 
+  // Helper function to get category name by ID
+  const getCategoryNameById = (categoryId) => {
+    if (!categoryId || !categories || categories.length === 0) return '';
+    const category = categories.find(cat => cat._id === categoryId);
+    return category ? category.name : '';
+  };
+
+  // Helper function to get subcategory name by ID
+  const getSubcategoryNameById = (subcategoryId) => {
+    if (!subcategoryId || !subcategories || subcategories.length === 0) return '';
+    const subcategory = subcategories.find(sub => sub._id === subcategoryId);
+    return subcategory ? subcategory.name : '';
+  };
+
+  // Get breadcrumb data
+  const getBreadcrumbData = () => {
+    if (!currentProduct) return null;
+    
+    const categoryName = getCategoryNameById(currentProduct.category);
+    const subcategoryName = getSubcategoryNameById(currentProduct.subcategory);
+    
+    return {
+      categoryName,
+      subcategoryName,
+      categorySlug: categoryName ? categoryName.toLowerCase().replace(/\s+/g, '-') : '',
+      subcategorySlug: subcategoryName ? subcategoryName.toLowerCase().replace(/\s+/g, '-') : '',
+    };
+  };
+
   // Add this component for better UX
   const ProductDetailSkeleton = () => (
     <div className="animate-pulse">
@@ -73,7 +108,12 @@ const ProductDetail = () => {
     </div>
   );
 
-  
+  // Load categories and subcategories on mount
+  useEffect(() => {
+    if (categories.length === 0) {
+      dispatch(getCategories());
+    }
+  }, [dispatch, categories.length]);
 
   // Fetch product data
   useEffect(() => {
@@ -86,6 +126,13 @@ const ProductDetail = () => {
       dispatch(clearCurrentProduct());
     };
   }, [productId, dispatch]);
+
+  // Load subcategories when product is loaded and has category
+  useEffect(() => {
+    if (currentProduct?.category && subcategories.length === 0) {
+      dispatch(getSubcategoriesByCategory(currentProduct.category));
+    }
+  }, [currentProduct?.category, dispatch, subcategories.length]);
 
   // Initialize product data when currentProduct changes
   useEffect(() => {
@@ -156,20 +203,30 @@ const ProductDetail = () => {
     }
   }, [selectedColorIndex, selectedColor]);
 
-  // Animate product details + similar products
+  // Animate product details + similar products - Fixed GSAP targets
   useEffect(() => {
     if (!loading && !productLoading && currentProduct) {
-      gsap.fromTo(
-        ".product-detail-section",
-        { opacity: 0, y: 30 },
-        { opacity: 1, y: 0, duration: 0.8, ease: "power2.out" }
-      );
+      // Use refs to ensure elements exist
+      if (sectionRef.current) {
+        gsap.fromTo(
+          sectionRef.current,
+          { opacity: 0, y: 30 },
+          { opacity: 1, y: 0, duration: 0.8, ease: "power2.out" }
+        );
+      }
 
-      gsap.fromTo(
-        ".similar-products-section",
-        { opacity: 0, y: 30 },
-        { opacity: 1, y: 0, duration: 0.8, delay: 0.2, ease: "power2.out" }
-      );
+      // Add a delay to ensure similar products section is rendered
+      const timer = setTimeout(() => {
+        if (similarProductsRef.current) {
+          gsap.fromTo(
+            similarProductsRef.current,
+            { opacity: 0, y: 30 },
+            { opacity: 1, y: 0, duration: 0.8, ease: "power2.out" }
+          );
+        }
+      }, 200);
+
+      return () => clearTimeout(timer);
     }
   }, [loading, productLoading, currentProduct]);
 
@@ -184,12 +241,6 @@ const ProductDetail = () => {
       const currentImages = selectedColor?.images || [];
       const selectedImage = currentImages[currentImageIndex] || currentImages[0] || '';
       
-      // Prepare color object
-      const colorObj = {
-        colorName: selectedColor.colorName,
-        colorHex: selectedColor.colorHex || '#000000'
-      };
-
       // Use the cart context to add to cart
       const result = await addToCartHandler(
         currentProduct, 
@@ -200,7 +251,6 @@ const ProductDetail = () => {
       );
 
       if (result.success) {
-        // Success feedback already handled by CartContext
         console.log('Added to cart successfully');
       }
     } catch (error) {
@@ -262,116 +312,120 @@ const ProductDetail = () => {
   };
 
   // Helper components
-  const ColorCircle = ({ color, size = "w-4 h-4" }) => {
-    // Use hex value if available, otherwise fallback to color name
-    const colorValue = color.colorHex || color.colorName;
+  const ColorCircle = ({ color, size = 'w-4 h-4', isSelected = false }) => {
+    // Use colorHex if available, otherwise default to a neutral color
+    const colorValue = color.colorHex || '#CCCCCC';
     
     return (
-      <div
-        className={`${size} rounded-full border-2 border-gray-300 flex-shrink-0`}
+      <div 
+        className={`${size} rounded-full border-2 flex-shrink-0 ${
+          isSelected ? 'border-gray-800' : 'border-gray-300'
+        }`}
         style={{ 
-          backgroundColor: colorValue?.startsWith('#') ? colorValue : colorValue,
-          background: colorValue?.includes('linear-gradient') ? colorValue : undefined
+          backgroundColor: colorValue
         }}
         title={color.colorName}
       />
     );
   };
-
+  
+  // Fixed SimilarProductCard component
   const SimilarProductCard = ({ product }) => {
-    const [hoverIndex, setHoverIndex] = useState(0);
     const [currentColorIndex, setCurrentColorIndex] = useState(0);
-
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    
+    const currentColor = product.colors?.[currentColorIndex];
+    const currentImage = currentColor?.images?.[currentImageIndex];
+    
+    // Use the helper function that's defined in the parent component scope
+    const productCategoryName = getCategoryNameById(product.category);
+    
     const handleProductClick = () => {
       navigate(`/product/${product._id}`);
+      window.scrollTo({top: 30, behavior: "smooth"});
     };
 
-    const discount = product.originalPrice
-      ? Math.round(
-          ((product.originalPrice - product.price) / product.originalPrice) * 100
-        )
-      : 0;
-
-    const currentColor = product.colors?.[currentColorIndex];
-    const displayImage = currentColor?.images?.[hoverIndex] || currentColor?.images?.[0];
+    const handleColorChange = (colorIndex) => {
+      setCurrentColorIndex(colorIndex);
+      setCurrentImageIndex(0); // Reset image index when color changes
+    };
 
     return (
-      <div
-        className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-all cursor-pointer"
+      <div 
+        className="product-card bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer group"
         onClick={handleProductClick}
       >
-        <div className="relative aspect-[3/4] bg-gray-100 overflow-hidden">
-          <img
-            src={displayImage}
+        {/* Clean Product Image - No Overlays */}
+        <div className="relative aspect-[3/4] bg-gray-50 overflow-hidden">
+          <img 
+            src={currentImage || product.colors?.[0]?.images?.[0]} 
             alt={product.name}
-            className="w-full h-full object-cover transition-transform hover:scale-105"
+            className="w-full h-full object-cover transition-all duration-500 group-hover:scale-105"
             onMouseEnter={() => {
               if (currentColor?.images?.length > 1) {
-                setHoverIndex(1);
+                setCurrentImageIndex(1);
               }
             }}
-            onMouseLeave={() => setHoverIndex(0)}
+            onMouseLeave={() => setCurrentImageIndex(0)}
           />
-          {discount > 0 && (
-            <span className="absolute top-2 left-2 bg-pink-500 text-white text-xs px-2 py-1 rounded">
-              {discount}% OFF
-            </span>
-          )}
         </div>
-        <div className="p-4">
-          {/* Color Selection */}
-          {product.colors && product.colors.length > 1 && (
-            <div className="flex gap-1 mb-2">
-              {product.colors.slice(0, 4).map((color, idx) => (
+        
+        <div className="p-3">
+          {/* 1. Available Colors Display */}
+          <div className="flex items-center gap-1 mb-2">
+            <div className="flex gap-1">
+              {product.colors?.slice(0, 5).map((color, index) => (
                 <button
-                  key={color._id}
+                  key={color._id || index}
                   onClick={(e) => {
                     e.stopPropagation();
-                    setCurrentColorIndex(idx);
-                    setHoverIndex(0);
+                    handleColorChange(index);
                   }}
-                  className={`p-0.5 rounded-full border ${
-                    currentColorIndex === idx 
-                      ? 'border-pink-500' 
-                      : 'border-gray-300'
-                  }`}
+                  className="hover:scale-110 transition-transform"
                 >
-                  <ColorCircle color={color} size="w-3 h-3" />
+                  <ColorCircle 
+                    color={color} 
+                    size="w-6 h-6" 
+                    isSelected={currentColorIndex === index}
+                  />
                 </button>
               ))}
-              {product.colors.length > 4 && (
-                <span className="text-gray-500 text-xs self-center">
-                  +{product.colors.length - 4}
-                </span>
+              {product.colors?.length > 5 && (
+                <span className="text-xs text-gray-500">+{product.colors.length - 5}</span>
               )}
             </div>
+          </div>
+          
+          {/* 2. Category Name */}
+          {productCategoryName && (
+            <div className="mb-2">
+              <span className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+                {productCategoryName}
+              </span>
+            </div>
           )}
-
-          <h3 className="text-gray-800 font-medium mb-1 text-sm line-clamp-2">
+          
+          {/* 3. Product Name */}
+          <h3 className="text-gray-900 font-medium mb-2 text-sm line-clamp-2 min-h-[2.5rem]">
             {product.name}
           </h3>
-          <div className="flex items-center gap-2 mb-1">
+          
+          {/* 4. Price Section */}
+          <div className="flex items-baseline gap-2">
             <span className="text-lg font-bold text-gray-900">
-              ₹{product.price}
+              ₹{product.price?.toLocaleString('en-IN')}
             </span>
-            {product.originalPrice && (
+            {product.originalPrice && product.originalPrice > product.price && (
               <span className="text-sm text-gray-500 line-through">
-                ₹{product.originalPrice}
+                ₹{product.originalPrice?.toLocaleString('en-IN')}
               </span>
             )}
           </div>
-          
-          {/* Color name display */}
-          {currentColor && (
-            <div className="text-xs text-gray-600">
-              Color: {currentColor.colorName}
-            </div>
-          )}
         </div>
       </div>
     );
   };
-
+  
   // Loading screen
   if (loading || productLoading) {
     return (
@@ -446,9 +500,12 @@ const ProductDetail = () => {
   const currentImages = selectedColor?.images || [];
   const currentImage = currentImages[currentImageIndex] || currentImages[0];
 
+  // Get breadcrumb data
+  const breadcrumbData = getBreadcrumbData();
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Breadcrumb */}
+      {/* Fixed Breadcrumb */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 py-3">
           <nav className="flex items-center space-x-2 text-sm text-gray-500">
@@ -456,10 +513,35 @@ const ProductDetail = () => {
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
-            <Link to="/products" className="hover:text-pink-600 transition-colors">Products</Link>
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
+            
+            {breadcrumbData?.categoryName && (
+              <>
+                <Link 
+                  to={`/products/${breadcrumbData.categorySlug}`} 
+                  className="hover:text-pink-600 transition-colors"
+                >
+                  {breadcrumbData.categoryName}
+                </Link>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </>
+            )}
+
+            {breadcrumbData?.subcategoryName && (
+              <>
+                <Link 
+                  to={`/products/${breadcrumbData.categorySlug}/${breadcrumbData.subcategorySlug}`} 
+                  className="hover:text-pink-600 transition-colors"
+                >
+                  {breadcrumbData.subcategoryName}
+                </Link>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </>
+            )}
+
             <span className="text-gray-900 font-medium truncate">{currentProduct.name}</span>
           </nav>
         </div>
@@ -540,6 +622,54 @@ const ProductDetail = () => {
             <h2 className="text-2xl md:text-3xl font-bold text-gray-800">
               {currentProduct.name}
             </h2>
+
+            {/* Reviews Summary */}
+            {currentProduct.ratings && currentProduct.ratings.length > 0 ? (
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center">
+                  {[1, 2, 3, 4, 5].map((star) => {
+                    const avgRating = currentProduct.ratings.reduce((acc, rating) => 
+                      acc + (rating.rating || rating), 0) / currentProduct.ratings.length;
+                    return (
+                      <svg
+                        key={star}
+                        className={`w-4 h-4 ${
+                          star <= Math.round(avgRating)
+                            ? 'text-pink-500 fill-current'
+                            : 'text-gray-300'
+                        }`}
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    );
+                  })}
+                  <span className="ml-2 text-sm text-gray-600">
+                    ({currentProduct.ratings.length} review{currentProduct.ratings.length !== 1 ? 's' : ''})
+                  </span>
+                </div>
+                <span className="text-sm text-gray-500">
+                  {(currentProduct.ratings.reduce((acc, rating) => acc + (rating.rating || rating), 0) / currentProduct.ratings.length).toFixed(1)} out of 5
+                </span>
+              </div>
+            ) : (
+              <div className="mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="flex">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <svg
+                        key={star}
+                        className="w-8 h-8 text-gray-300"
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    ))}
+                  </div>
+                  <span className="text-sm text-gray-500">No reviews yet</span>
+                </div>
+              </div>
+            )}
             
             <div className="flex items-center gap-3 flex-wrap">
               <p className="text-xl md:text-2xl font-bold">₹{currentProduct.price}</p>
@@ -562,10 +692,10 @@ const ProductDetail = () => {
             {/* Colors */}
             {currentProduct.colors && currentProduct.colors.length > 0 && (
               <div>
-                <p className="font-bold mb-2 text-sm md:text-base">
+                <p className="font-bold mb-2 text-sm md:text-base ">
                   Color: {selectedColor?.colorName}
                 </p>
-                <div className="flex gap-2 md:gap-3 flex-wrap">
+                <div className="flex gap-2 md:gap-3 flex-wrap ">
                   {currentProduct.colors.map((color, idx) => (
                     <button
                       key={color._id}
@@ -590,15 +720,15 @@ const ProductDetail = () => {
                 {sizesLoading ? (
                   <div className="text-sm text-gray-500">Loading sizes...</div>
                 ) : (
-                  <div className="flex gap-2 md:gap-3 flex-wrap">
+                  <div className="flex gap-2 md:gap-3 flex-wrap ">
                     {selectedColor.sizeStock.map((sizeObj, idx) => (
                       <button
                         key={idx}
                         onClick={() => setSelectedSize(sizeObj.size)}
                         disabled={sizeObj.stock === 0}
-                        className={`px-3 py-2 md:px-4 md:py-2 border-2 font-medium text-sm md:text-base ${
+                        className={`px-3 py-2 md:px-4 md:py-2 border-2 font-medium text-sm md:text-base rounded-md ${
                           selectedSize === sizeObj.size
-                            ? "bg-black text-white border-black"
+                            ? "bg-black text-white border-black "
                             : sizeObj.stock === 0
                             ? "bg-gray-200 text-gray-400 border-gray-300 cursor-not-allowed"
                             : "bg-white text-black border-gray-300 hover:border-gray-400"
@@ -631,10 +761,10 @@ const ProductDetail = () => {
 
             {/* Quantity + Cart */}
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center">
-              <div className="flex items-center border rounded w-fit">
+              <div className="flex items-center border-2 rounded w-fit bg-gray-200">
                 <button
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="px-3 py-2 hover:bg-gray-100"
+                  className="px-3 py-2  hover:bg-gray-100"
                 >
                   -
                 </button>
@@ -689,31 +819,7 @@ const ProductDetail = () => {
               Buy It Now
             </button>
 
-            {/* Additional Product Info */}
-            {currentProduct.code && (
-              <div className="text-sm text-gray-600">
-                <strong>Product Code:</strong> {currentProduct.code}
-              </div>
-            )}
-
-            {/* Stock Information */}
-            {selectedColor && selectedSize && (
-              <div className="text-sm text-gray-600">
-                <strong>Stock:</strong> {
-                  selectedColor.sizeStock?.find(s => s.size === selectedSize)?.stock || 0
-                } units available
-              </div>
-            )}
-
-            {currentProduct.tags && currentProduct.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {currentProduct.tags.map((tag, index) => (
-                  <span key={index} className="text-xs bg-gray-100 px-2 py-1 rounded">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            )}
+            
           </div>
         </div>
       </section>
