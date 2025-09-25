@@ -39,9 +39,8 @@ const Topbar = () => {
           {/* Left links */}
           <div className="flex flex-wrap items-center justify-center lg:justify-start space-x-4 sm:space-x-6 text-xs text-black">
             <a href="#" className="hover:underline hover:text-pink-500 transition-all duration-200 hover:scale-105 transform py-1">FAQs</a>
-            <a href="#" className="hover:underline hover:text-pink-500 transition-all duration-200 hover:scale-105 transform py-1">eCards</a>
-            <a href="#" className="hover:underline hover:text-pink-500 transition-all duration-200 hover:scale-105 transform py-1">Gift Card</a>
-            <a href="#" className="hover:underline hover:text-pink-500 transition-all duration-200 hover:scale-105 transform py-1">Online Help</a>
+            <a href="#" className="hover:underline hover:text-pink-500 transition-all duration-200 hover:scale-105 transform py-1">About Us</a>
+            <a href="#" className="hover:underline hover:text-pink-500 transition-all duration-200 hover:scale-105 transform py-1">Contact Us</a>
           </div>
 
           {/* Right icons */}
