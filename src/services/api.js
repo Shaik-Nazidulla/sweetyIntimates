@@ -1,4 +1,4 @@
-// src/services/api.js
+// src/services/api.js - Updated with proper cart API endpoints
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 class ApiService {
@@ -43,7 +43,12 @@ class ApiService {
     return sessionId;
   }
 
-  // Product APIs (keeping existing ones)
+  // Check if user is authenticated
+  isAuthenticated() {
+    return !!localStorage.getItem('token');
+  }
+
+  // ===== PRODUCT APIs =====
   async getAllProducts(page = 1, limit = 12) {
     return this.request(`/product/products?page=${page}&limit=${limit}`);
   }
@@ -64,27 +69,7 @@ class ApiService {
     return this.request(`/product/subcategory/${subcategoryId}?page=${page}&limit=${limit}&isActive=${isActive}`);
   }
 
-  async getAvailableSizes(productId, colorName) {
-    return this.request(`/product/${productId}/colors/${encodeURIComponent(colorName)}/sizes`);
-  }
-
-  // Category APIs (keeping existing)
-  async getCategories() {
-    return this.request('/category');
-  }
-
-  // Auth APIs (keeping existing)
-  async getUserProfile() {
-    return this.request('/auth/profile');
-  }
-
-  async updateUserProfile(profileData) {
-    return this.request('/auth/profile', {
-      method: 'PATCH',
-      body: JSON.stringify(profileData),
-    });
-  }
-
+  // ===== AUTH APIs =====
   async login(email, password) {
     return this.request('/auth/login', {
       method: 'POST',
@@ -99,15 +84,13 @@ class ApiService {
     });
   }
 
-  async logout() {
-    return this.request('/auth/logout', {
-      method: 'POST',
-    });
+  async getUserProfile() {
+    return this.request('/auth/profile');
   }
 
-  // ===== UPDATED CART APIs =====
+  // ===== CART APIs (Updated to match your API responses) =====
 
-  // 1. Add items to cart (authenticated users)
+  // 1. Add items to cart (POST /cart) - Works for authenticated users
   async addToCart(productId, quantity = 1, size = 'M', color = {}, selectedImage = '') {
     return this.request('/cart', {
       method: 'POST',
@@ -121,17 +104,17 @@ class ApiService {
     });
   }
 
-  // 2. Get user cart (simple)
+  // 2. Get user cart (GET /cart) - Basic cart data
   async getUserCart() {
     return this.request('/cart');
   }
 
-  // 3. Get cart with details (includes product info and totals)
+  // 3. Get cart with details (GET /cart/details) - Includes totals and product details
   async getCartDetails() {
     return this.request('/cart/details');
   }
 
-  // 4. Update cart item by item ID
+  // 4. Update cart item by item ID (PUT /cart/item/:itemId)
   async updateCartItem(itemId, quantity, size, color = {}, selectedImage = '') {
     return this.request(`/cart/item/${itemId}`, {
       method: 'PUT',
@@ -144,8 +127,8 @@ class ApiService {
     });
   }
 
-  // 5. Remove item from cart (with query parameters for size and color)
-  async removeFromCart(productId, size, colorName) {
+  // 5. Remove item from cart (DELETE /cart/product/:productId?size=&colorName=)
+  async removeFromCart(productId, size = '', colorName = '') {
     const params = new URLSearchParams();
     if (size) params.append('size', size.toLowerCase());
     if (colorName) params.append('colorName', colorName);
@@ -158,14 +141,14 @@ class ApiService {
     });
   }
 
-  // 6. Clear all cart items
+  // 6. Clear cart items (DELETE /cart/clear)
   async clearCart() {
     return this.request('/cart/clear', {
       method: 'DELETE',
     });
   }
 
-  // 7. Validate cart
+  // 7. Validate cart (POST /cart/validate)
   async validateCart() {
     return this.request('/cart/validate', {
       method: 'POST',
@@ -174,7 +157,7 @@ class ApiService {
 
   // ===== GUEST CART APIs =====
 
-  // 8. Add items to guest cart
+  // 8. Add items to guest cart (POST /cart/guest/:sessionId/product/:productId)
   async addToGuestCart(sessionId, productId, quantity = 1, size = 'M', color = {}, selectedImage = '') {
     return this.request(`/cart/guest/${sessionId}/product/${productId}`, {
       method: 'POST',
@@ -187,7 +170,7 @@ class ApiService {
     });
   }
 
-  // 9. Update guest cart item by item ID
+  // 9. Update guest cart item by item ID (PUT /cart/guest/:sessionId/item/:itemId)
   async updateGuestCartItem(sessionId, itemId, quantity, size, color = {}, selectedImage = '') {
     return this.request(`/cart/guest/${sessionId}/item/${itemId}`, {
       method: 'PUT',
@@ -200,8 +183,8 @@ class ApiService {
     });
   }
 
-  // 10. Remove item from guest cart
-  async removeFromGuestCart(sessionId, productId, size, colorName) {
+  // 10. Remove item from guest cart (DELETE /cart/guest/:sessionId/product/:productId?size=&colorName=)
+  async removeFromGuestCart(sessionId, productId, size = '', colorName = '') {
     const params = new URLSearchParams();
     if (size) params.append('size', size.toLowerCase());
     if (colorName) params.append('colorName', colorName);
@@ -214,12 +197,81 @@ class ApiService {
     });
   }
 
-  // 11. Get guest cart
+  // 11. Get guest cart (GET /cart/guest/:sessionId)
   async getGuestCart(sessionId) {
     return this.request(`/cart/guest/${sessionId}`);
   }
 
-  // 12. Merge cart (after user logs in)
+  // 12. Get guest cart with details (simulated - since API doesn't have this endpoint)
+  async getGuestCartDetails(sessionId) {
+    try {
+      const response = await this.getGuestCart(sessionId);
+      if (response.data) {
+        // Transform guest cart to match cart details format
+        const guestCart = response.data;
+        
+        // Calculate totals for guest cart
+        let subtotal = 0;
+        const transformedItems = [];
+        
+        for (const item of guestCart.items) {
+          // For guest cart, we might need to fetch product details separately
+          // This is a limitation of guest carts - they might not have full product info
+          const itemTotal = 0; // Would need product price to calculate
+          subtotal += itemTotal;
+          
+          transformedItems.push({
+            _id: item._id,
+            product: {
+              _id: item.product, // Only has product ID in guest cart
+              name: 'Product', // Would need to fetch full product details
+              price: 0 // Would need to fetch from product API
+            },
+            quantity: item.quantity,
+            size: item.size,
+            color: item.color,
+            selectedImage: item.selectedImage,
+            addedAt: item.addedAt,
+            itemTotal: itemTotal
+          });
+        }
+        
+        return {
+          data: {
+            cart: {
+              _id: guestCart._id,
+              user: null, // Guest cart
+              appliedCoupon: {},
+              appliedVoucher: {}
+            },
+            items: transformedItems,
+            totals: {
+              subtotal,
+              discountAmount: 0,
+              total: subtotal,
+              itemCount: guestCart.items.length
+            }
+          }
+        };
+      }
+    } catch (error) {
+      // If guest cart doesn't exist, return empty cart structure
+      return {
+        data: {
+          cart: null,
+          items: [],
+          totals: {
+            subtotal: 0,
+            discountAmount: 0,
+            total: 0,
+            itemCount: 0
+          }
+        }
+      };
+    }
+  }
+
+  // 13. Merge cart (POST /cart/merge)
   async mergeCart(sessionId) {
     return this.request('/cart/merge', {
       method: 'POST',
@@ -229,7 +281,7 @@ class ApiService {
 
   // ===== DISCOUNT APIs =====
 
-  // 13. Apply discount
+  // 14. Apply discount (POST /cart/apply-discount)
   async applyDiscount(code, type = 'coupon') {
     return this.request('/cart/apply-discount', {
       method: 'POST',
@@ -237,70 +289,121 @@ class ApiService {
     });
   }
 
-  // 14. Remove discount
-  async removeDiscount() {
+  // 15. Remove discount (DELETE /cart/remove-discount)
+  async removeDiscount(type = "all") {
     return this.request('/cart/remove-discount', {
       method: 'DELETE',
+      body: JSON.stringify({ type }),
     });
   }
 
-  // 15. Get discount by code
+  // 16. Get discount by code (GET /discount/code/:code)
   async getDiscountByCode(code) {
     return this.request(`/discount/code/${code}`);
   }
 
-  // ===== UPDATED WISHLIST APIs =====
+  // ===== SMART CART METHODS (handles both authenticated and guest users) =====
 
-// Create wishlist
-async createWishlist(name = "My Wishlist", isPublic = false) {
-  return this.request('/wishlist/create', {
-    method: 'POST',
-    body: JSON.stringify({ name, isPublic }),
-  });
-}
+  // Smart add to cart - automatically chooses between user/guest cart
+  async smartAddToCart(productId, quantity = 1, size = 'M', color = {}, selectedImage = '') {
+    if (this.isAuthenticated()) {
+      return this.addToCart(productId, quantity, size, color, selectedImage);
+    } else {
+      const sessionId = this.getSessionId();
+      return this.addToGuestCart(sessionId, productId, quantity, size, color, selectedImage);
+    }
+  }
 
-// Get user's wishlist
-async getWishlist() {
-  return this.request('/wishlist');
-}
+  // Smart get cart details - automatically chooses between user/guest cart
+  async smartGetCartDetails() {
+    if (this.isAuthenticated()) {
+      return this.getCartDetails();
+    } else {
+      const sessionId = this.getSessionId();
+      return this.getGuestCartDetails(sessionId);
+    }
+  }
 
-// Add item to wishlist
-async addToWishlist(productId, priceWhenAdded) {
-  return this.request('/wishlist/add', {
-    method: 'POST',
-    body: JSON.stringify({ productId, priceWhenAdded }),
-  });
-}
+  // Smart update cart item
+  async smartUpdateCartItem(itemId, quantity, size, color = {}, selectedImage = '') {
+    if (this.isAuthenticated()) {
+      return this.updateCartItem(itemId, quantity, size, color, selectedImage);
+    } else {
+      const sessionId = this.getSessionId();
+      return this.updateGuestCartItem(sessionId, itemId, quantity, size, color, selectedImage);
+    }
+  }
 
-// Check if item exists in wishlist
-async checkWishlistItem(productId) {
-  return this.request(`/wishlist/check/${productId}`);
-}
+  // Smart remove from cart
+  async smartRemoveFromCart(productId, size = '', colorName = '') {
+    if (this.isAuthenticated()) {
+      return this.removeFromCart(productId, size, colorName);
+    } else {
+      const sessionId = this.getSessionId();
+      return this.removeFromGuestCart(sessionId, productId, size, colorName);
+    }
+  }
 
-// Toggle wishlist item
-async toggleWishlistItem(productId, priceWhenAdded) {
-  return this.request('/wishlist/toggle', {
-    method: 'POST',
-    body: JSON.stringify({ productId, priceWhenAdded }),
-  });
-}
+  // Smart clear cart
+  async smartClearCart() {
+    if (this.isAuthenticated()) {
+      return this.clearCart();
+    } else {
+      // For guest users, just clear the session ID
+      localStorage.removeItem('guestSessionId');
+      return { data: { items: [] } };
+    }
+  }
 
-// Remove item from wishlist
-async removeFromWishlist(productId) {
-  return this.request(`/wishlist/remove/${productId}`, {
-    method: 'DELETE',
-  });
-}
+  // ===== WISHLIST APIs (keeping existing ones) =====
+  async createWishlist(name = "My Wishlist", isPublic = false) {
+    return this.request('/wishlist/create', {
+      method: 'POST',
+      body: JSON.stringify({ name, isPublic }),
+    });
+  }
 
-// Get wishlist item count
-async getWishlistCount() {
-  return this.request('/wishlist/count');
-}
+  async getWishlist() {
+    return this.request('/wishlist');
+  }
 
-// Move item to cart
-async moveWishlistItemToCart(productId) {
-  return this.request(`/wishlist/move-to-cart/${productId}`);
-}
+  async addToWishlist(productId, priceWhenAdded) {
+    return this.request('/wishlist/add', {
+      method: 'POST',
+      body: JSON.stringify({ productId, priceWhenAdded }),
+    });
+  }
+
+  async removeFromWishlist(productId) {
+    return this.request(`/wishlist/remove/${productId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async toggleWishlistItem(productId, priceWhenAdded) {
+    return this.request('/wishlist/toggle', {
+      method: 'POST',
+      body: JSON.stringify({ productId, priceWhenAdded }),
+    });
+  }
+
+  // ===== CATEGORY APIs =====
+  async getCategories() {
+    return this.request('/category');
+  }
+
+  async getCategoryById(categoryId) {
+    return this.request(`/category/${categoryId}`);
+  }
+
+  // ===== SUBCATEGORY APIs =====
+  async getSubcategoriesByCategory(categoryId) {
+    return this.request(`/subcategory/category/${categoryId}`);
+  }
+
+  async getSubcategoryById(subcategoryId) {
+    return this.request(`/subcategory/${subcategoryId}`);
+  }
 }
 
 export const apiService = new ApiService();

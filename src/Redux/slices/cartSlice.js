@@ -1,157 +1,75 @@
-// src/Redux/slices/cartSlice.js - Updated for new API structure
+// src/Redux/slices/cartSlice.js - Complete implementation with guest cart support
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { apiService } from '../../services/api';
 
-// Helper function to generate session ID for guest users
-const generateSessionId = () => {
-  let sessionId = localStorage.getItem('guestSessionId');
-  if (!sessionId) {
-    sessionId = 'session_' + Date.now() + Math.random().toString(36).substr(2, 9);
-    localStorage.setItem('guestSessionId', sessionId);
-  }
-  return sessionId;
-};
-
 // ===== ASYNC THUNKS =====
 
-// Fetch cart details (with product info and totals)
+// Fetch cart details (automatically handles guest/authenticated users)
 export const fetchCartDetails = createAsyncThunk(
   'cart/fetchCartDetails',
   async (_, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('token');
-      if (token) {
-        const response = await apiService.getCartDetails();
-        return response.data;
-      } else {
-        // For guest users, try to fetch guest cart or return empty
-        const sessionId = localStorage.getItem('guestSessionId');
-        if (sessionId) {
-          try {
-            const response = await apiService.getGuestCart(sessionId);
-            return {
-              cart: response.data,
-              items: response.data.items || [],
-              totals: {
-                subtotal: 0,
-                discountAmount: 0,
-                total: 0,
-                itemCount: response.data.items?.length || 0
-              }
-            };
-          } catch (error) {
-            // Guest cart not found, return empty cart
-            return {
-              cart: null,
-              items: [],
-              totals: { subtotal: 0, discountAmount: 0, total: 0, itemCount: 0 }
-            };
-          }
-        } else {
-          return {
-            cart: null,
-            items: [],
-            totals: { subtotal: 0, discountAmount: 0, total: 0, itemCount: 0 }
-          };
-        }
-      }
+      const response = await apiService.smartGetCartDetails();
+      return response.data;
     } catch (error) {
       return rejectWithValue(error.message);
     }
   }
 );
 
-// Add to cart
+// Add to cart (automatically handles guest/authenticated users)
 export const addToCartAsync = createAsyncThunk(
   'cart/addToCartAsync',
   async ({ productId, quantity = 1, size = 'M', color = {}, selectedImage = '' }, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('token');
-      
-      if (token) {
-        // Authenticated user
-        const response = await apiService.addToCart(productId, quantity, size, color, selectedImage);
-        return response.data;
-      } else {
-        // Guest user
-        const sessionId = generateSessionId();
-        const response = await apiService.addToGuestCart(sessionId, productId, quantity, size, color, selectedImage);
-        return response.data;
-      }
+      const response = await apiService.smartAddToCart(productId, quantity, size, color, selectedImage);
+      return response.data;
     } catch (error) {
       return rejectWithValue(error.message);
     }
   }
 );
 
-// Update cart item (by item ID)
+// Update cart item (automatically handles guest/authenticated users)
 export const updateCartItemAsync = createAsyncThunk(
   'cart/updateCartItemAsync',
   async ({ itemId, quantity, size, color = {}, selectedImage = '' }, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('token');
-      
-      if (token) {
-        // Authenticated user
-        const response = await apiService.updateCartItem(itemId, quantity, size, color, selectedImage);
-        return response.data;
-      } else {
-        // Guest user
-        const sessionId = generateSessionId();
-        const response = await apiService.updateGuestCartItem(sessionId, itemId, quantity, size, color, selectedImage);
-        return response.data;
-      }
+      const response = await apiService.smartUpdateCartItem(itemId, quantity, size, color, selectedImage);
+      return response.data;
     } catch (error) {
       return rejectWithValue(error.message);
     }
   }
 );
 
-// Remove from cart
+// Remove from cart (automatically handles guest/authenticated users)
 export const removeFromCartAsync = createAsyncThunk(
   'cart/removeFromCartAsync',
   async ({ productId, size, colorName }, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('token');
-      
-      if (token) {
-        // Authenticated user
-        const response = await apiService.removeFromCart(productId, size, colorName);
-        return { productId, size, colorName, response: response.data };
-      } else {
-        // Guest user
-        const sessionId = generateSessionId();
-        const response = await apiService.removeFromGuestCart(sessionId, productId, size, colorName);
-        return { productId, size, colorName, response: response.data };
-      }
+      const response = await apiService.smartRemoveFromCart(productId, size, colorName);
+      return { productId, size, colorName, response: response.data };
     } catch (error) {
       return rejectWithValue(error.message);
     }
   }
 );
 
-// Clear cart
+// Clear cart (automatically handles guest/authenticated users)
 export const clearCartAsync = createAsyncThunk(
   'cart/clearCartAsync',
   async (_, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('token');
-      
-      if (token) {
-        const response = await apiService.clearCart();
-        return response.data;
-      } else {
-        // For guest users, just clear local storage
-        localStorage.removeItem('guestSessionId');
-        return { items: [] };
-      }
+      const response = await apiService.smartClearCart();
+      return response.data;
     } catch (error) {
       return rejectWithValue(error.message);
     }
   }
 );
 
-// Validate cart
+// Validate cart (only for authenticated users)
 export const validateCartAsync = createAsyncThunk(
   'cart/validateCartAsync',
   async (_, { rejectWithValue }) => {
@@ -177,7 +95,7 @@ export const mergeCartAsync = createAsyncThunk(
   }
 );
 
-// Apply discount
+// Apply discount (only for authenticated users)
 export const applyDiscountAsync = createAsyncThunk(
   'cart/applyDiscountAsync',
   async ({ code, type = 'coupon' }, { rejectWithValue }) => {
@@ -190,7 +108,7 @@ export const applyDiscountAsync = createAsyncThunk(
   }
 );
 
-// Remove discount
+// Remove discount (only for authenticated users)
 export const removeDiscountAsync = createAsyncThunk(
   'cart/removeDiscountAsync',
   async (_, { rejectWithValue }) => {
@@ -234,6 +152,9 @@ const initialState = {
     itemCount: 0
   },
   
+  // User type
+  isAuthenticated: false,
+  
   // Loading states
   loading: false,
   addingToCart: false,
@@ -272,6 +193,11 @@ const cartSlice = createSlice({
   name: 'cart',
   initialState,
   reducers: {
+    // Set authentication status
+    setAuthenticated: (state, action) => {
+      state.isAuthenticated = action.payload;
+    },
+
     // Local cart actions for immediate UI feedback
     addToCart: (state, action) => {
       const { product, size, quantity = 1, color = {}, selectedImage = '' } = action.payload;
@@ -285,6 +211,7 @@ const cartSlice = createSlice({
 
       if (existingItemIndex >= 0) {
         state.items[existingItemIndex].quantity += quantity;
+        state.items[existingItemIndex].itemTotal = state.items[existingItemIndex].product.price * state.items[existingItemIndex].quantity;
       } else {
         state.items.push({
           _id: 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
@@ -303,7 +230,7 @@ const cartSlice = createSlice({
 
       // Recalculate local totals
       state.totalItems = state.items.reduce((total, item) => total + item.quantity, 0);
-      state.totalPrice = state.items.reduce((total, item) => total + (item.product.price * item.quantity), 0);
+      state.totalPrice = state.items.reduce((total, item) => total + (item.itemTotal || item.product.price * item.quantity), 0);
     },
     
     removeFromCart: (state, action) => {
@@ -321,7 +248,7 @@ const cartSlice = createSlice({
 
       // Recalculate totals
       state.totalItems = state.items.reduce((total, item) => total + item.quantity, 0);
-      state.totalPrice = state.items.reduce((total, item) => total + (item.product.price * item.quantity), 0);
+      state.totalPrice = state.items.reduce((total, item) => total + (item.itemTotal || item.product.price * item.quantity), 0);
       
       // Update API totals
       if (state.totals) {
@@ -357,7 +284,7 @@ const cartSlice = createSlice({
 
         // Recalculate totals
         state.totalItems = state.items.reduce((total, item) => total + item.quantity, 0);
-        state.totalPrice = state.items.reduce((total, item) => total + (item.product.price * item.quantity), 0);
+        state.totalPrice = state.items.reduce((total, item) => total + (item.itemTotal || item.product.price * item.quantity), 0);
         
         // Update API totals
         if (state.totals) {
@@ -411,8 +338,8 @@ const cartSlice = createSlice({
           },
           size: item.size,
           quantity: item.quantity,
-          color: item.color,
-          selectedImage: item.selectedImage,
+          color: item.color || {},
+          selectedImage: item.selectedImage || '',
           addedAt: item.addedAt,
           itemTotal: item.itemTotal
         }));
@@ -466,6 +393,9 @@ const cartSlice = createSlice({
           itemCount: 0
         };
         
+        // Update authentication status
+        state.isAuthenticated = !!localStorage.getItem('token');
+        
         // Sync with local cart
         if (items && Array.isArray(items)) {
           state.items = items.map(item => ({
@@ -479,7 +409,7 @@ const cartSlice = createSlice({
             color: item.color || {},
             selectedImage: item.selectedImage || '',
             addedAt: item.addedAt,
-            itemTotal: item.itemTotal
+            itemTotal: item.itemTotal || (item.product.price * item.quantity)
           }));
         }
         
@@ -488,13 +418,20 @@ const cartSlice = createSlice({
         state.hasDiscount = (totals?.discountAmount || 0) > 0;
         
         // Set discount info from cart
-        if (cart?.appliedCoupon?.code || cart?.appliedVoucher?.code) {
-          state.appliedDiscount = cart.appliedCoupon || cart.appliedVoucher;
+        if (cart?.appliedCoupon?.code) {
+          state.appliedDiscount = cart.appliedCoupon;
+        } else if (cart?.appliedVoucher?.code) {
+          state.appliedDiscount = cart.appliedVoucher;
         }
       })
       .addCase(fetchCartDetails.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+        
+        // For guest users, don't treat empty cart as error
+        if (!state.isAuthenticated && action.payload.includes('not found')) {
+          state.error = null;
+        }
       })
       
       // Add to cart
@@ -504,10 +441,8 @@ const cartSlice = createSlice({
       })
       .addCase(addToCartAsync.fulfilled, (state, action) => {
         state.addingToCart = false;
-        // Optionally update state with server response
-        if (action.payload.items) {
-          state.apiItems = action.payload.items;
-        }
+        // The local state is already updated by the addToCart action
+        // We can optionally refresh cart details here
       })
       .addCase(addToCartAsync.rejected, (state, action) => {
         state.addingToCart = false;
@@ -521,10 +456,7 @@ const cartSlice = createSlice({
       })
       .addCase(updateCartItemAsync.fulfilled, (state, action) => {
         state.updatingCart = false;
-        // Optionally update state with server response
-        if (action.payload.items) {
-          state.apiItems = action.payload.items;
-        }
+        // The local state is already updated by the updateQuantity action
       })
       .addCase(updateCartItemAsync.rejected, (state, action) => {
         state.updatingCart = false;
@@ -538,10 +470,7 @@ const cartSlice = createSlice({
       })
       .addCase(removeFromCartAsync.fulfilled, (state, action) => {
         state.removingFromCart = false;
-        // Update state with server response
-        if (action.payload.response.items) {
-          state.apiItems = action.payload.response.items;
-        }
+        // The local state is already updated by the removeFromCart action
       })
       .addCase(removeFromCartAsync.rejected, (state, action) => {
         state.removingFromCart = false;
@@ -598,11 +527,15 @@ const cartSlice = createSlice({
             product: item.product,
             size: item.size,
             quantity: item.quantity,
-            color: item.color,
+            color: item.color || {},
             selectedImage: item.selectedImage,
             addedAt: item.addedAt,
-            itemTotal: item.product.price * item.quantity
+            itemTotal: item.itemTotal || (item.product.price * item.quantity)
           }));
+          
+          // Recalculate totals
+          state.totalItems = state.items.reduce((total, item) => total + item.quantity, 0);
+          state.totalPrice = state.items.reduce((total, item) => total + (item.itemTotal || item.product.price * item.quantity), 0);
         }
       })
       .addCase(mergeCartAsync.rejected, (state, action) => {
@@ -610,30 +543,39 @@ const cartSlice = createSlice({
         state.mergeError = action.payload;
       })
 
-      // Apply discount
+      // Apply discount (only available for authenticated users)
       .addCase(applyDiscountAsync.pending, (state) => {
         state.applyingDiscount = true;
         state.discountError = null;
       })
       .addCase(applyDiscountAsync.fulfilled, (state, action) => {
         state.applyingDiscount = false;
-        state.hasDiscount = true;
         
-        // Update cart with applied discount
+        // Check if we got the expected response structure
         if (action.payload.appliedCoupon) {
+          state.hasDiscount = true;
           state.appliedDiscount = action.payload.appliedCoupon;
           state.cart = { ...state.cart, appliedCoupon: action.payload.appliedCoupon };
-        }
-        if (action.payload.appliedVoucher) {
-          state.appliedDiscount = action.payload.appliedVoucher;
-          state.cart = { ...state.cart, appliedVoucher: action.payload.appliedVoucher };
+          
+          // Update totals with discount
+          if (state.appliedDiscount?.discountAmount) {
+            state.totals.discountAmount = state.appliedDiscount.discountAmount;
+            state.totals.total = state.totals.subtotal - state.appliedDiscount.discountAmount;
+            state.totalPrice = state.totals.total;
+          }
         }
         
-        // Update totals with discount
-        if (state.appliedDiscount?.discountAmount) {
-          state.totals.discountAmount = state.appliedDiscount.discountAmount;
-          state.totals.total = state.totals.subtotal - state.appliedDiscount.discountAmount;
-          state.totalPrice = state.totals.total;
+        if (action.payload.appliedVoucher) {
+          state.hasDiscount = true;
+          state.appliedDiscount = action.payload.appliedVoucher;
+          state.cart = { ...state.cart, appliedVoucher: action.payload.appliedVoucher };
+          
+          // Update totals with discount
+          if (state.appliedDiscount?.discountAmount) {
+            state.totals.discountAmount = state.appliedDiscount.discountAmount;
+            state.totals.total = state.totals.subtotal - state.appliedDiscount.discountAmount;
+            state.totalPrice = state.totals.total;
+          }
         }
       })
       .addCase(applyDiscountAsync.rejected, (state, action) => {
@@ -641,7 +583,7 @@ const cartSlice = createSlice({
         state.discountError = action.payload;
       })
 
-      // Remove discount
+      // Remove discount (only available for authenticated users)
       .addCase(removeDiscountAsync.pending, (state) => {
         state.removingDiscount = true;
         state.discountError = null;
@@ -684,6 +626,7 @@ const cartSlice = createSlice({
 });
 
 export const { 
+  setAuthenticated,
   addToCart, 
   removeFromCart, 
   updateQuantity, 

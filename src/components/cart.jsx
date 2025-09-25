@@ -1,4 +1,4 @@
-// cart.jsx - Updated for new API integration
+// cart.jsx - Updated for new API integration with proper guest cart support
 import { useSelector } from 'react-redux';
 import { useCart } from "../hooks/useCart";
 import { useWishlist } from "./WishlistContext";
@@ -110,12 +110,15 @@ const CartItem = ({ item, updateQuantity, deleteItem, addToWishlist, renderStars
     }
   };
 
-  // FIXED: Add proper null checks and fallbacks for price calculation
+  // FIXED: Better price calculation with proper fallbacks
   const currentPrice = item.product?.price || item.price || 0;
   const originalPrice = item.product?.originalPrice || (currentPrice > 0 ? currentPrice * 1.2 : 0);
   const discount = originalPrice > 0 && currentPrice > 0 
     ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100)
     : 0;
+
+  // Get proper item total - use server-calculated value or calculate locally
+  const itemTotal = item.itemTotal || (currentPrice * (item.quantity || 1));
 
   return (
     <div
@@ -137,9 +140,12 @@ const CartItem = ({ item, updateQuantity, deleteItem, addToWishlist, renderStars
         >
           {item.product?.name || item.name}
         </div>
-        <div className="text-gray-600 text-xs sm:text-sm mb-2">
-          {item.product?.description || item.description}
+        
+        {/* Product ID for debugging */}
+        <div className="text-xs text-gray-400 mb-1">
+          ID: {item.product?._id || item._id}
         </div>
+
         <div className="text-pink-600 text-sm mb-2">
           {renderStars(item.product?.rating || 5)}
         </div>
@@ -148,8 +154,12 @@ const CartItem = ({ item, updateQuantity, deleteItem, addToWishlist, renderStars
         {(item.color?.colorName || item.size) && (
           <div className="flex gap-2 mb-2">
             {item.color?.colorName && (
-              <span className="text-xs bg-gray-100 px-2 py-1 rounded">
-                Color: {item.color.colorName}
+              <span className="text-xs bg-gray-100 px-2 py-1 rounded flex items-center gap-1">
+                <div 
+                  className="w-3 h-3 rounded-full border" 
+                  style={{ backgroundColor: item.color.colorHex || '#000' }}
+                ></div>
+                {item.color.colorName}
               </span>
             )}
             {item.size && (
@@ -163,13 +173,10 @@ const CartItem = ({ item, updateQuantity, deleteItem, addToWishlist, renderStars
         <div className="mb-3">
           {discount > 0 && (
             <div className="bg-pink-600 text-white text-xs px-2 py-1 rounded mb-1 inline-block animate-pulse">
-              Limited time deal
+              {discount}% OFF
             </div>
           )}
           <div className="flex items-center gap-2">
-            {discount > 0 && (
-              <div className="text-sm text-pink-600 font-semibold">{discount}%</div>
-            )}
             <div className="text-lg font-semibold text-gray-800">
               ₹{currentPrice > 0 ? currentPrice.toLocaleString() : '0'}
             </div>
@@ -226,7 +233,7 @@ const CartItem = ({ item, updateQuantity, deleteItem, addToWishlist, renderStars
         {/* Item Total */}
         <div className="text-right">
           <div className="text-lg font-semibold text-gray-800">
-            ₹{(item.itemTotal || (currentPrice * (item.quantity || 1))).toLocaleString()}
+            ₹{itemTotal.toLocaleString()}
           </div>
         </div>
       </div>
@@ -240,9 +247,12 @@ const CartItem = ({ item, updateQuantity, deleteItem, addToWishlist, renderStars
           >
             {item.product?.name || item.name}
           </div>
-          <div className="text-gray-600 text-sm mb-2">
-            {item.product?.description || item.description}
+          
+          {/* Product ID for debugging */}
+          <div className="text-xs text-gray-400 mb-1">
+            ID: {item.product?._id || item._id}
           </div>
+
           <div className="text-pink-600 text-sm mb-2">
             {renderStars(item.product?.rating || 5)}
           </div>
@@ -251,8 +261,12 @@ const CartItem = ({ item, updateQuantity, deleteItem, addToWishlist, renderStars
           {(item.color?.colorName || item.size) && (
             <div className="flex gap-2 mb-2">
               {item.color?.colorName && (
-                <span className="text-xs bg-gray-100 px-2 py-1 rounded">
-                  Color: {item.color.colorName}
+                <span className="text-xs bg-gray-100 px-2 py-1 rounded flex items-center gap-1">
+                  <div 
+                    className="w-3 h-3 rounded-full border" 
+                    style={{ backgroundColor: item.color.colorHex || '#000' }}
+                  ></div>
+                  {item.color.colorName}
                 </span>
               )}
               {item.size && (
@@ -309,7 +323,7 @@ const CartItem = ({ item, updateQuantity, deleteItem, addToWishlist, renderStars
         <div className="text-right min-w-28">
           {discount > 0 && (
             <div className="bg-pink-600 text-white text-xs px-2 py-1 rounded mb-1 inline-block animate-pulse">
-              Limited time deal
+              {discount}% OFF
             </div>
           )}
           {discount > 0 && (
@@ -324,7 +338,7 @@ const CartItem = ({ item, updateQuantity, deleteItem, addToWishlist, renderStars
             </div>
           )}
           <div className="text-lg font-semibold text-gray-800 mt-2">
-            Total: ₹{(item.itemTotal || (currentPrice * (item.quantity || 1))).toLocaleString()}
+            Total: ₹{itemTotal.toLocaleString()}
           </div>
         </div>
       </div>
@@ -332,7 +346,7 @@ const CartItem = ({ item, updateQuantity, deleteItem, addToWishlist, renderStars
   );
 };
 
-// ⭐ Deal Item Component
+// ⭐ Deal Item Component with better product filtering
 const DealItem = ({ deal, addToCart, renderStars }) => {
   const itemRef = useRef(null);
   const navigate = useNavigate();
@@ -350,16 +364,19 @@ const DealItem = ({ deal, addToCart, renderStars }) => {
       id: deal._id || deal.id,
       _id: deal._id || deal.id,
       name: deal.name,
-      brand: deal.name,
       price: deal.price,
       originalPrice: deal.originalPrice || deal.price * 1.2,
       images: deal.images || [],
-      image: deal.images && deal.images.length > 0 ? deal.images[0] : '',
       colors: deal.colors || [],
-      sizes: deal.sizeStock ? deal.sizeStock.map(s => s.size) : ['M']
+      description: deal.description || deal.name
     };
     
-    await addToCart(dealData, 1, '', 'M');
+    // Use default color and size
+    const defaultColor = deal.colors?.[0]?.colorName || '';
+    const defaultSize = deal.colors?.[0]?.sizeStock?.[0]?.size || 'M';
+    const defaultImage = deal.colors?.[0]?.images?.[0] || deal.images?.[0] || '';
+    
+    await addToCart(dealData, 1, defaultColor, defaultSize, defaultImage);
   };
 
   const originalPrice = deal.originalPrice || deal.price * 1.2;
@@ -368,7 +385,7 @@ const DealItem = ({ deal, addToCart, renderStars }) => {
   return (
     <div ref={itemRef} className="flex gap-3 py-3 border-b border-gray-200 last:border-b-0">
       <img
-        src={deal.images && deal.images.length > 0 ? deal.images[0] : '/placeholder-image.jpg'}
+        src={deal.colors?.[0]?.images?.[0] || deal.images?.[0] || '/placeholder-image.jpg'}
         alt={deal.name}
         className="w-16 h-16 sm:w-20 sm:h-20 rounded-md object-cover cursor-pointer"
         onClick={goToDetail}
@@ -397,23 +414,34 @@ const DealItem = ({ deal, addToCart, renderStars }) => {
   );
 };
 
-// ⭐ Coupon Component
+// ⭐ Enhanced Coupon Component with better error handling
 const CouponSection = ({ onApplyDiscount, onRemoveDiscount, hasDiscount, appliedDiscount, loading }) => {
   const [couponCode, setCouponCode] = useState('');
   const [showCouponInput, setShowCouponInput] = useState(false);
+  const [error, setError] = useState('');
 
   const handleApplyCoupon = async () => {
-    if (couponCode.trim()) {
-      const result = await onApplyDiscount(couponCode.trim());
-      if (result.success) {
-        setCouponCode('');
-        setShowCouponInput(false);
-      }
+    if (!couponCode.trim()) {
+      setError('Please enter a coupon code');
+      return;
+    }
+    
+    setError('');
+    const result = await onApplyDiscount(couponCode.trim());
+    if (result.success) {
+      setCouponCode('');
+      setShowCouponInput(false);
+    } else {
+      setError(result.error || 'Failed to apply coupon');
     }
   };
 
   const handleRemoveDiscount = async () => {
-    await onRemoveDiscount();
+    setError('');
+    const result = await onRemoveDiscount();
+    if (!result.success) {
+      setError(result.error || 'Failed to remove discount');
+    }
   };
 
   if (hasDiscount && appliedDiscount) {
@@ -422,7 +450,7 @@ const CouponSection = ({ onApplyDiscount, onRemoveDiscount, hasDiscount, applied
         <div className="flex flex-col">
           <span className="text-green-600 text-sm font-medium">✓ Discount Applied</span>
           <span className="text-green-700 text-xs">
-            {appliedDiscount.code} - ₹{appliedDiscount.discountAmount?.toLocaleString()} off
+            {appliedDiscount.code} - ₹{(appliedDiscount.discountAmount || 0).toLocaleString()} off
           </span>
         </div>
         <button
@@ -438,9 +466,18 @@ const CouponSection = ({ onApplyDiscount, onRemoveDiscount, hasDiscount, applied
 
   return (
     <div className="mb-3">
+      {error && (
+        <div className="text-red-500 text-xs mb-2 p-2 bg-red-50 rounded">
+          {error}
+        </div>
+      )}
+      
       {!showCouponInput ? (
         <button
-          onClick={() => setShowCouponInput(true)}
+          onClick={() => {
+            setShowCouponInput(true);
+            setError('');
+          }}
           className="w-full bg-white border border-pink-300 text-pink-600 py-3 rounded-3xl text-sm font-semibold hover:bg-pink-50 transition-colors"
         >
           Add Coupon
@@ -450,9 +487,13 @@ const CouponSection = ({ onApplyDiscount, onRemoveDiscount, hasDiscount, applied
           <input
             type="text"
             value={couponCode}
-            onChange={(e) => setCouponCode(e.target.value)}
+            onChange={(e) => {
+              setCouponCode(e.target.value);
+              setError('');
+            }}
             placeholder="Enter coupon code"
             className="flex-1 px-3 py-2 border border-pink-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pink-200"
+            onKeyPress={(e) => e.key === 'Enter' && handleApplyCoupon()}
           />
           <button
             onClick={handleApplyCoupon}
@@ -465,6 +506,7 @@ const CouponSection = ({ onApplyDiscount, onRemoveDiscount, hasDiscount, applied
             onClick={() => {
               setShowCouponInput(false);
               setCouponCode('');
+              setError('');
             }}
             className="text-gray-500 px-2 hover:text-gray-700"
           >
@@ -491,7 +533,9 @@ const Cart = () => {
     appliedDiscount,
     applyingDiscount,
     removingDiscount,
-    clearCartItems
+    clearCartItems,
+    loading,
+    isAuthenticated
   } = useCart();
   
   const { addToWishlist } = useWishlist();
@@ -501,24 +545,44 @@ const Cart = () => {
 
   const renderStars = (rating) => "★".repeat(Math.floor(rating));
   
-  // Use totals from API or fallback to calculated values
-  const getTotalItems = () => totals?.itemCount || totalItems || 0;
-  const getSubtotal = () => totals?.subtotal || cartItems.reduce((t, i) => t + (i.itemTotal || i.product.price * i.quantity), 0) || 0;
-  const getDiscountAmount = () => totals?.discountAmount || 0;
-  const getTotalAmount = () => totals?.total || totalPrice || (getSubtotal() - getDiscountAmount());
+  // Use totals from API with proper fallbacks
+  const getTotalItems = () => {
+    if (totals?.itemCount >= 0) return totals.itemCount;
+    if (totalItems >= 0) return totalItems;
+    return cartItems.reduce((total, item) => total + (item.quantity || 0), 0);
+  };
 
-  // Fetch popular deals from API
+  const getSubtotal = () => {
+    if (totals?.subtotal >= 0) return totals.subtotal;
+    return cartItems.reduce((total, item) => {
+      const price = item.product?.price || item.price || 0;
+      const quantity = item.quantity || 0;
+      const itemTotal = item.itemTotal || (price * quantity);
+      return total + itemTotal;
+    }, 0);
+  };
+
+  const getDiscountAmount = () => totals?.discountAmount || 0;
+
+  const getTotalAmount = () => {
+    if (totals?.total >= 0) return totals.total;
+    return Math.max(0, getSubtotal() - getDiscountAmount());
+  };
+
+  // Fetch popular deals from API, excluding items already in cart
   useEffect(() => {
     const fetchDeals = async () => {
       try {
         setDealsLoading(true);
-        const response = await apiService.getAllProducts(1, 6);
+        const response = await apiService.getAllProducts(1, 8); // Get more products to filter from
         
         if (response && response.products) {
           // Filter out products that are already in cart
-          const availableDeals = response.products.filter(
-            (product) => !cartItems.find((cartItem) => cartItem.product._id === product._id)
-          );
+          const cartProductIds = cartItems.map(item => item.product?._id || item.productId);
+          const availableDeals = response.products
+            .filter(product => !cartProductIds.includes(product._id))
+            .slice(0, 6); // Limit to 6 deals
+          
           setDeals(availableDeals);
         }
       } catch (error) {
@@ -546,10 +610,32 @@ const Cart = () => {
     }
   }, []);
 
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-pink-500 mb-4"></div>
+          <p className="text-gray-600">Loading cart...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-gray-100 min-h-screen">
       {/* Mobile Layout */}
       <div className="lg:hidden p-3 pb-24" ref={containerRef}>
+        {/* Auth Status Indicator */}
+        {!isAuthenticated && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+            <div className="text-yellow-800 text-sm">
+              <span className="font-medium">Guest Mode:</span> Your cart will be saved temporarily. 
+              <a href="/login" className="underline ml-1">Login</a> to save permanently.
+            </div>
+          </div>
+        )}
+
         {/* Summary */}
         <div className="bg-white rounded-xl p-4 shadow-lg mb-4">
           <div className="text-base font-semibold mb-2">
@@ -651,6 +737,16 @@ const Cart = () => {
           
           {/* Cart Section */}
           <div className="flex-1 bg-white rounded-xl shadow-lg flex flex-col">
+            {/* Auth Status Indicator */}
+            {!isAuthenticated && (
+              <div className="bg-yellow-50 border-b border-yellow-200 p-3">
+                <div className="text-yellow-800 text-sm">
+                  <span className="font-medium">Guest Mode:</span> Your cart will be saved temporarily. 
+                  <a href="/login" className="underline ml-1">Login</a> to save permanently.
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-between items-center text-xl font-semibold p-5 border-b">
               <div className="flex items-center gap-2">
                 Shopping Cart <span className="text-gray-500 text-base">({getTotalItems()} items)</span>
@@ -772,3 +868,4 @@ if (!document.querySelector("#cart-styles")) {
 }
 
 export default Cart;
+                

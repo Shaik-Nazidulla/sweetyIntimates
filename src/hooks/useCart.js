@@ -1,7 +1,8 @@
-// src/hooks/useCart.js - Updated with better error handling and null safety
+// src/hooks/useCart.js - Updated with guest cart support and proper error handling
 import { useSelector, useDispatch } from 'react-redux';
 import { useCallback, useEffect } from 'react';
 import {
+  setAuthenticated,
   addToCart,
   removeFromCart,
   updateQuantity,
@@ -31,6 +32,7 @@ export const useCart = () => {
     cart,
     totals,
     apiItems = [],
+    isAuthenticated = false,
     
     // Loading states
     loading = false,
@@ -61,13 +63,27 @@ export const useCart = () => {
     cartValidation
   } = useSelector(state => state.cart || {});
 
-  // Check if user is authenticated
-  const isAuthenticated = () => !!localStorage.getItem('token');
+  // Check if user is authenticated and update store
+  useEffect(() => {
+    const checkAuth = () => {
+      const token = localStorage.getItem('token');
+      const authStatus = !!token;
+      if (authStatus !== isAuthenticated) {
+        dispatch(setAuthenticated(authStatus));
+      }
+    };
+    
+    checkAuth();
+    
+    // Listen for storage changes (user login/logout)
+    window.addEventListener('storage', checkAuth);
+    return () => window.removeEventListener('storage', checkAuth);
+  }, [dispatch, isAuthenticated]);
 
-  // Load cart details on mount
+  // Load cart details on mount and when auth status changes
   useEffect(() => {
     dispatch(fetchCartDetails());
-  }, [dispatch]);
+  }, [dispatch, isAuthenticated]);
 
   // Add item to cart with enhanced parameters and better error handling
   const addItemToCart = useCallback(async (product, quantity = 1, selectedColor = '', selectedSize = 'M', selectedImage = '') => {
@@ -189,37 +205,7 @@ export const useCart = () => {
     return updateItemQuantity(itemId, newQuantity);
   }, [items, updateItemQuantity]);
 
-  // Remove item from cart (legacy method for backward compatibility)
-  const removeItemFromCart = useCallback(async (productId, size = '', colorName = '') => {
-    if (!productId) {
-      return { success: false, error: 'Product ID is required' };
-    }
-
-    try {
-      // Immediate UI feedback
-      dispatch(removeFromCart({ 
-        productId, 
-        size: size.toLowerCase(),
-        colorName 
-      }));
-
-      // API call
-      await dispatch(removeFromCartAsync({ 
-        productId, 
-        size: size.toLowerCase(),
-        colorName 
-      })).unwrap();
-
-      return { success: true };
-    } catch (error) {
-      console.error('Failed to remove from cart:', error);
-      // Refresh cart to restore correct state
-      dispatch(fetchCartDetails());
-      return { success: false, error: error.message || 'Failed to remove item from cart' };
-    }
-  }, [dispatch]);
-
-  // Delete item by item ID (new method) with better error handling
+  // Delete item by item ID with better error handling
   const deleteItem = useCallback(async (itemId) => {
     if (!itemId) {
       console.error('Item ID is required');
@@ -277,8 +263,12 @@ export const useCart = () => {
     }
   }, [dispatch]);
 
-  // Validate cart
+  // Validate cart (only for authenticated users)
   const validateCart = useCallback(async () => {
+    if (!isAuthenticated) {
+      return { valid: true, issues: [], message: 'Validation not available for guest users' };
+    }
+
     try {
       const result = await dispatch(validateCartAsync()).unwrap();
       return result || { valid: true, issues: [] };
@@ -286,13 +276,13 @@ export const useCart = () => {
       console.error('Failed to validate cart:', error);
       return { valid: false, issues: ['Validation failed'], error: error.message };
     }
-  }, [dispatch]);
+  }, [dispatch, isAuthenticated]);
 
   // Handle cart merge after user login
   const mergeCart = useCallback(async () => {
     try {
       const sessionId = localStorage.getItem('guestSessionId');
-      if (sessionId && isAuthenticated()) {
+      if (sessionId && isAuthenticated) {
         await dispatch(mergeCartAsync(sessionId)).unwrap();
         // Clear guest session after merge
         localStorage.removeItem('guestSessionId');
@@ -305,10 +295,14 @@ export const useCart = () => {
       console.error('Failed to merge cart:', error);
       return { success: false, error: error.message || 'Failed to merge cart' };
     }
-  }, [dispatch]);
+  }, [dispatch, isAuthenticated]);
 
-  // Apply discount/coupon
+  // Apply discount/coupon (only for authenticated users)
   const applyDiscount = useCallback(async (code, type = 'coupon') => {
+    if (!isAuthenticated) {
+      return { success: false, error: 'Please login to apply discounts' };
+    }
+
     if (!code || typeof code !== 'string') {
       return { success: false, error: 'Valid discount code is required' };
     }
@@ -323,10 +317,14 @@ export const useCart = () => {
       console.error('Failed to apply discount:', error);
       return { success: false, error: error.message || 'Failed to apply discount' };
     }
-  }, [dispatch]);
+  }, [dispatch, isAuthenticated]);
 
-  // Remove discount
+  // Remove discount (only for authenticated users)
   const removeDiscount = useCallback(async () => {
+    if (!isAuthenticated) {
+      return { success: false, error: 'Please login to manage discounts' };
+    }
+
     try {
       await dispatch(removeDiscountAsync()).unwrap();
       
@@ -337,7 +335,7 @@ export const useCart = () => {
       console.error('Failed to remove discount:', error);
       return { success: false, error: error.message || 'Failed to remove discount' };
     }
-  }, [dispatch]);
+  }, [dispatch, isAuthenticated]);
 
   // Refresh cart data
   const refreshCart = useCallback(() => {
@@ -351,11 +349,11 @@ export const useCart = () => {
 
   // Helper functions with better null safety
   const getCartTotal = useCallback(() => {
-    return totals?.total || totalPrice || 0;
+    return totals?.total >= 0 ? totals.total : totalPrice || 0;
   }, [totals?.total, totalPrice]);
 
   const getCartSubtotal = useCallback(() => {
-    if (totals?.subtotal) {
+    if (totals?.subtotal >= 0) {
       return totals.subtotal;
     }
     
@@ -372,11 +370,11 @@ export const useCart = () => {
   }, [totals?.discountAmount]);
 
   const getCartItemCount = useCallback(() => {
-    if (totals?.itemCount) {
+    if (totals?.itemCount >= 0) {
       return totals.itemCount;
     }
     
-    if (totalItems) {
+    if (totalItems >= 0) {
       return totalItems;
     }
     
@@ -441,6 +439,7 @@ export const useCart = () => {
     apiItems,
     totalItems: getCartItemCount(),
     totalPrice: getCartTotal(),
+    isAuthenticated,
     
     // Computed values
     subtotal: getCartSubtotal(),
@@ -467,17 +466,16 @@ export const useCart = () => {
     mergeError,
     discountError,
     
-    // Discount state
-    hasDiscount,
-    appliedDiscount,
+    // Discount state (only available for authenticated users)
+    hasDiscount: isAuthenticated ? hasDiscount : false,
+    appliedDiscount: isAuthenticated ? appliedDiscount : null,
     
     // Validation state
     cartValidation,
     
     // Actions
     addItemToCart,
-    removeItemFromCart, // Legacy method
-    deleteItem, // New method for item ID
+    deleteItem,
     updateItemQuantity,
     updateCartQuantity, // For +/- buttons
     refreshCart,
@@ -494,7 +492,6 @@ export const useCart = () => {
     getItemById,
     isCartEmpty,
     getItemsByProductId,
-    isAuthenticated: isAuthenticated(),
     
     // Sync action
     syncWithApiCart: (data) => dispatch(syncWithApiCart(data))
