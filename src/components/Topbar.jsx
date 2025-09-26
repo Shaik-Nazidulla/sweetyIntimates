@@ -17,28 +17,12 @@ const Topbar = () => {
   
   return (
     <>
-      {/* First Navbar - Promotional Banner */}
-      <div className="bg-pink-100 flex justify-center items-center text-black text-xs py-2 px-4">
-        <div className="flex items-center justify-center text-center space-x-4 max-w-6xl w-full">
-          <span className="font-medium text-xs sm:text-sm">
-            NEW BRA AND SWIMMING COLLECTIONS: SHOP NOW!
-          </span>
-          <button className="text-gray-600 hover:text-gray-800 underline text-xs transition-all duration-200 hover:scale-105 transform">
-            DETAILS
-          </button>
-          <button className="bg-white border border-gray-300 text-gray-700 px-3 py-1 text-xs hover:bg-gray-50 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 rounded-sm">
-            VIEW OFFERS
-          </button>
-        </div>
-      </div>
-
-      {/* Second Navbar */}
+      
       <div className="bg-[#EEEEEE] border-b border-[#EEEEEE]">
         <div className="flex flex-col lg:flex-row justify-between items-center px-4 sm:px-6 py-3 space-y-3 lg:space-y-0 max-w-7xl mx-auto">
           
           {/* Left links */}
           <div className="flex flex-wrap items-center justify-center lg:justify-start space-x-4 sm:space-x-6 text-xs text-black">
-            <a href="#" className="hover:underline hover:text-pink-500 transition-all duration-200 hover:scale-105 transform py-1">FAQs</a>
             <a href="#" className="hover:underline hover:text-pink-500 transition-all duration-200 hover:scale-105 transform py-1">About Us</a>
             <a href="#" className="hover:underline hover:text-pink-500 transition-all duration-200 hover:scale-105 transform py-1">Contact Us</a>
           </div>

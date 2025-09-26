@@ -12,9 +12,9 @@ import SearchResults from "./components/SearchResults";
 import Wishlist from "./components/Wishlist";
 import Cart from "./components/cart";
 import UserProfile from "./pages/UserProfile";
+import AboutUs from "./pages/AboutUs";
 
 // Components
-import Topbar from "./components/Topbar";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 
@@ -32,12 +32,14 @@ function App() {
           <Router>
             <div className="font-sans">
               {/* Global Layout Components */}
-              <Topbar />
               <Navbar />
 
               <Routes>
                 {/* Home */}
                 <Route path="/" element={<Home />} />
+
+                {/* About Us - Add this route */}
+                <Route path="/about" element={<AboutUs />} />
 
                 {/* Dynamic product routes */}
                 <Route path="/products" element={<Products />} />

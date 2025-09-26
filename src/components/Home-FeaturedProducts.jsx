@@ -76,7 +76,7 @@ const HomeDailyDeals = () => {
       {/* Title */}
       <h2 className="text-2xl sm:text-3xl lg:text-6xl font-light text-center mb-8 sm:mb-12 text-black tracking-wide"
       style={{ fontFamily: "Montaga, serif", fontWeight: 400, fontStyle: "normal" }}>
-        DAILY DEALS
+        FEATURED PRODUCTS
       </h2>
 
       {/* Slider container */}

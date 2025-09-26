@@ -1,6 +1,6 @@
 import React from "react";
 import HeroSlider from "../components/Home-HeroSlider";
-import DailyDeals from "../components/Home-DailyDeals";
+import DailyDeals from "../components/Home-FeaturedProducts";
 import Brand from "../components/Home-BrandSection";
 import CollectionShowcase from "../components/Home-CollectionShowcase";
 import Explore from "../components/Home-ExploreSection";
@@ -17,7 +17,6 @@ const Home = () => {
       <Brand />
       <CollectionShowcase />
       <PerfectFit />
-      <Explore />
       <ProductDetails />
       <ReviewsSection />
     </div>

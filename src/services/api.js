@@ -88,6 +88,54 @@ class ApiService {
     return this.request('/auth/profile');
   }
 
+
+  // ===== ORDER APIs =====
+
+  // 1. Create order (POST /order)
+  async createOrder(orderData) {
+    return this.request('/order', {
+      method: 'POST',
+      body: JSON.stringify(orderData),
+    });
+  }
+  
+  // 2. Get user orders (GET /order)
+  async getUserOrders(page = 1, limit = 10) {
+    return this.request(`/order?page=${page}&limit=${limit}`);
+  }
+  
+  // 3. Get order by ID (GET /order/:id)
+  async getOrderById(orderId) {
+    return this.request(`/order/${orderId}`);
+  }
+  
+  // 4. Search orders (GET /order/search)
+  async searchOrders(query, page = 1, limit = 10) {
+    return this.request(`/order/search?q=${encodeURIComponent(query)}&page=${page}&limit=${limit}`);
+  }
+  
+  // 5. Get order statistics (GET /order/stats)
+  async getOrderStats() {
+    return this.request('/order/stats');
+  }
+  
+  // 6. Cancel order (POST /order/:id/cancel)
+  async cancelOrder(orderId, reason) {
+    return this.request(`/order/${orderId}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  }
+  
+  // 7. Return order (POST /order/:id/return)
+  async returnOrder(orderId, reason) {
+    return this.request(`/order/${orderId}/return`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  }
+
+
   // ===== CART APIs (Updated to match your API responses) =====
 
   // 1. Add items to cart (POST /cart) - Works for authenticated users

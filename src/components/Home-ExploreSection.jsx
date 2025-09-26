@@ -97,7 +97,7 @@ const SweetyIntimatesLanding = () => {
 
               {/* CTA Button */}
               <button className="mt-6 sm:mt-8 lg:mt-12 px-8 sm:px-10 lg:px-12 py-3 lg:py-4 bg-transparent border border-gray-600 text-gray-700 font-medium text-sm sm:text-base lg:text-lg tracking-wide hover-animate cursor-pointer transition-all duration-300 hover:bg-gray-600 hover:text-white rounded-sm">
-                VIEW OFFERS
+                KNOW MORE ABOUT US
               </button>
             </div>
           </div>
