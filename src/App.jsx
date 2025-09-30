@@ -13,15 +13,17 @@ import Wishlist from "./components/Wishlist";
 import Cart from "./components/cart";
 import UserProfile from "./pages/UserProfile";
 import AboutUs from "./pages/AboutUs";
+import OrderSuccess from "./pages/OrderSuccess";
+import Blogs from "./pages/Blogs";
 
 // Components
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import Checkout from "./components/Checkout";
 
 // Context Providers
 import { CartProvider } from "./components/CartContext";
 import { WishlistProvider } from "./components/WishlistContext";
-
 import "./App.css";
 
 function App() {
@@ -62,9 +64,14 @@ function App() {
                 {/* User Profile */}
                 <Route path="/profile" element={<UserProfile />} />
 
+                <Route path="/blogs" element={<Blogs />} />
+
                 {/* Auth routes (can be removed as SignIn modal handles both) */}
                 <Route path="/login" element={<div>Login Page - Use SignIn Modal Instead</div>} />
                 <Route path="/register" element={<div>Register Page - Use SignIn Modal Instead</div>} />
+
+                <Route path="/checkout" element={<Checkout />} />
+                <Route path="/order-success/:orderId" element={<OrderSuccess />} />
               </Routes>
 
               {/* Global Footer */}

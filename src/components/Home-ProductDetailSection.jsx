@@ -61,6 +61,38 @@ const HomeProductDetailSection = () => {
     }
   }, [products]);
 
+  const handleBuyNow = async () => {
+  if (!latestProduct || !selectedColor || !selectedSize) return;
+  
+  setAddingToCart(true);
+  
+  try {
+    // Get current selected image
+    const currentImages = selectedColor?.images || [];
+    const selectedImage = currentImages[currentImageIndex] || currentImages[0] || '';
+    
+    // Use the cart context to add to cart
+    const result = await addToCartHandler(
+      latestProduct,  // Changed from currentProduct to latestProduct
+      quantity, 
+      selectedColor.colorName, 
+      selectedSize, 
+      selectedImage
+    );
+
+    if (result.success) {
+      // Navigate to checkout after successfully adding to cart
+      navigate('/checkout');
+    } else {
+      console.error('Failed to add to cart for Buy Now');
+    }
+  } catch (error) {
+    console.error('Failed to add to cart for Buy Now:', error);
+  } finally {
+    setAddingToCart(false);
+  }
+};
+
   // Handle add to cart
   const handleAddToCart = async () => {
     if (!latestProduct || !selectedColor || !selectedSize) return;
@@ -459,11 +491,12 @@ const HomeProductDetailSection = () => {
           </div>
 
           <button 
-            className="w-full bg-pink-600 text-white py-3 rounded hover:bg-pink-700 text-sm md:text-base disabled:bg-gray-400"
-            disabled={!selectedSize || !selectedColor}
-          >
-            Buy It Now
-          </button>
+              onClick={handleBuyNow}
+              className="w-full bg-pink-600 text-white py-3 rounded hover:bg-pink-700 text-sm md:text-base disabled:bg-gray-400"
+              disabled={!selectedSize || !selectedColor || addingToCart}
+            >
+              {addingToCart ? 'Processing...' : 'Buy It Now'}
+            </button>
 
           {/* View Full Details Button */}
           <button 

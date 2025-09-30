@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { useDispatch, useSelector } from "react-redux";
 import { loginUser, registerUser, clearAuthErrors } from "../Redux/slices/authSlice";
-
+import { mergeCartAsync } from "../Redux/slices/cartSlice";
 const SignIn = ({ isOpen, onClose, initialMode = "login" }) => {
   const dispatch = useDispatch();
   const { loading, error, isAuthenticated } = useSelector((state) => state.auth);
@@ -91,44 +91,71 @@ const SignIn = ({ isOpen, onClose, initialMode = "login" }) => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    const validationError = mode === 'login' ? validateLoginForm() : validateSignupForm();
-    if (validationError) {
-      return;
-    }
+  e.preventDefault();
+  
+  const validationError = mode === 'login' ? validateLoginForm() : validateSignupForm();
+  if (validationError) {
+    return;
+  }
 
-    if (mode === 'login') {
-      dispatch(loginUser({
-        email: formData.email,
-        password: formData.password
-      }));
-    } else {
-      dispatch(registerUser({
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        password: formData.password,
-        phone: formData.phone,
-        addresses: [
-          ...(formData.homeAddress ? [{ 
-            name: "Home", 
-            addressLine1: formData.homeAddress,
-            city: "",
-            state: "",
-            pinCode: ""
-          }] : []),
-          ...(formData.officeAddress ? [{ 
-            name: "Office", 
-            addressLine1: formData.officeAddress,
-            city: "",
-            state: "",
-            pinCode: ""
-          }] : [])
-        ]
-      }));
+  if (mode === 'login') {
+    const resultAction = await dispatch(loginUser({
+      email: formData.email,
+      password: formData.password
+    }));
+    
+    // Merge cart after successful login
+    if (loginUser.fulfilled.match(resultAction)) {
+      const sessionId = localStorage.getItem('guestSessionId');
+      if (sessionId) {
+        try {
+          await dispatch(mergeCartAsync(sessionId)).unwrap();
+          console.log('✅ Cart merged successfully after login');
+        } catch (error) {
+          console.error('❌ Failed to merge cart:', error);
+        }
+      }
     }
-  };
+    
+  } else {
+    const resultAction = await dispatch(registerUser({
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      email: formData.email,
+      password: formData.password,
+      phone: formData.phone,
+      addresses: [
+        ...(formData.homeAddress ? [{ 
+          name: "Home", 
+          addressLine1: formData.homeAddress,
+          city: "",
+          state: "",
+          pinCode: ""
+        }] : []),
+        ...(formData.officeAddress ? [{ 
+          name: "Office", 
+          addressLine1: formData.officeAddress,
+          city: "",
+          state: "",
+          pinCode: ""
+        }] : [])
+      ]
+    }));
+    
+    // Merge cart after successful registration
+    if (registerUser.fulfilled.match(resultAction)) {
+      const sessionId = localStorage.getItem('guestSessionId');
+      if (sessionId) {
+        try {
+          await dispatch(mergeCartAsync(sessionId)).unwrap();
+          console.log('✅ Cart merged successfully after registration');
+        } catch (error) {
+          console.error('❌ Failed to merge cart:', error);
+        }
+      }
+    }
+  }
+};
 
   const handleGoogleLogin = async () => {
     console.log("Google login clicked");

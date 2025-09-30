@@ -1,10 +1,12 @@
 import React, { useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { gsap } from 'gsap';
 
 import prd3 from "../assets/products/prd3.jpg";
 import prd12 from "../assets/products/prd12.png";
 
 const LingerieHeroSection = () => {
+  const navigate = useNavigate();
   const categoryStripRef = useRef(null);
   const leftSectionRef = useRef(null);
   const rightSectionRef = useRef(null);
@@ -37,6 +39,14 @@ const LingerieHeroSection = () => {
     // Hover animations for buttons
     const readMoreBtn = readMoreBtnRef.current;
     const shopNowBtn = shopNowBtnRef.current;
+
+    const handleReadMore = () => {
+  gsap.to(readMoreBtnRef.current, {
+    scale: 0.95,
+    duration: 0.1,
+    onComplete: () => navigate('/blogs')
+  });
+};
 
     if (readMoreBtn) {
       readMoreBtn.addEventListener('mouseenter', () => {
@@ -159,6 +169,7 @@ const LingerieHeroSection = () => {
             {/* Read More Button */}
             <button 
               ref={readMoreBtnRef}
+              onClick={() => navigate('/blogs')}  // Add this line
               className="border-2 border-gray-400 bg-transparent text-gray-700 
                          px-3 py-2 sm:px-4 sm:py-2 md:px-6 md:py-3 lg:px-8 lg:py-4 xl:px-10 xl:py-4
                          text-xs sm:text-sm md:text-base font-medium 

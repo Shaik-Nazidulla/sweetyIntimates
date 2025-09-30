@@ -1,4 +1,4 @@
-//src/components/wishlist.jsx - Updated for new API integration
+//src/components/wishlist.jsx
 import { useWishlist } from "./WishlistContext";
 import { useCart } from "../hooks/useCart";
 import infoproducts from "./ProductsInfo";
@@ -113,7 +113,6 @@ const WishlistItem = ({ item, removeFromWishlist, addToCart, moveToCart, renderS
         <div className="text-gray-600 text-xs sm:text-sm mb-2 leading-relaxed">
           {item.description}
         </div>
-        <div className="text-pink-600 text-sm mb-2">{renderStars(item.rating || 5)}</div>
         
         {/* Price Section for Mobile */}
         <div className="flex items-center gap-2 mb-3">
@@ -140,9 +139,6 @@ const WishlistItem = ({ item, removeFromWishlist, addToCart, moveToCart, renderS
         )}
 
         {/* Status for Mobile */}
-        <div className="text-xs text-green-600 font-medium mb-3">
-          ✓ In Stock • FREE delivery
-        </div>
         {(item.discount || originalPrice) && (
           <div className="bg-pink-600 text-white text-xs px-2 py-1 rounded mb-3 inline-block">
             Limited time deal
@@ -151,12 +147,6 @@ const WishlistItem = ({ item, removeFromWishlist, addToCart, moveToCart, renderS
 
         {/* Action Buttons */}
         <div className="flex gap-3 flex-wrap">
-          <button
-            className="add-to-cart-btn bg-pink-600 text-white py-2 px-4 rounded-2xl text-sm font-medium hover:bg-pink-700 transition-colors"
-            onClick={handleAddToCart}
-          >
-            Add to Cart
-          </button>
           <button
             className="border border-pink-600 text-pink-600 py-2 px-4 rounded-2xl text-sm font-medium hover:bg-pink-50 transition-colors"
             onClick={handleRemove}
@@ -193,8 +183,6 @@ const WishlistItem = ({ item, removeFromWishlist, addToCart, moveToCart, renderS
           <div className="text-gray-600 text-xs sm:text-sm mb-2 leading-relaxed">
             {item.description}
           </div>
-          <div className="text-pink-600 text-sm mb-2">{renderStars(item.rating || 5)}</div>
-          
           {/* Price Section */}
           <div className="flex items-center gap-2 mb-3">
             <div className="text-lg font-semibold text-gray-800">
@@ -222,12 +210,6 @@ const WishlistItem = ({ item, removeFromWishlist, addToCart, moveToCart, renderS
           {/* Action Buttons */}
           <div className="flex gap-3 flex-wrap">
             <button
-              className="add-to-cart-btn bg-pink-600 text-white py-2 px-4 rounded-2xl text-sm font-medium hover:bg-pink-700 transition-colors"
-              onClick={handleAddToCart}
-            >
-              Add to Cart
-            </button>
-            <button
               className="border border-pink-600 text-pink-600 py-2 px-4 rounded-2xl text-sm font-medium hover:bg-pink-50 transition-colors"
               onClick={handleRemove}
             >
@@ -252,12 +234,6 @@ const WishlistItem = ({ item, removeFromWishlist, addToCart, moveToCart, renderS
 
         {/* Right Column - Availability Status */}
         <div className="text-right min-w-24 flex-shrink-0">
-          <div className="text-xs text-green-600 font-medium mb-1">
-            ✓ In Stock
-          </div>
-          <div className="text-xs text-gray-500">
-            FREE delivery
-          </div>
           {(item.discount || originalPrice) && (
             <div className="bg-pink-600 text-white text-xs px-2 py-1 rounded mt-2 inline-block">
               Limited time deal
@@ -327,7 +303,6 @@ const RecommendationItem = ({ item, addToCart, addToWishlist, renderStars }) => 
           {item.brand || item.name}
         </div>
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-pink-600 text-xs">{renderStars(item.rating || 5)}</span>
           {(item.discount || item.originalPrice) && (
             <span className="text-pink-600 text-xs font-semibold">
               -{item.discount || Math.round(((item.originalPrice - item.price) / item.originalPrice) * 100)}%

@@ -1,6 +1,7 @@
-// src/hooks/useWishlist.js - Updated for new API integration
+// src/hooks/useWishlist.js
 import { useSelector, useDispatch } from 'react-redux';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { apiService } from '../services/api';
 import {
   createWishlist,
   getWishlist,
@@ -10,7 +11,7 @@ import {
   removeFromWishlist,
   getWishlistCount,
   moveWishlistItemToCart,
-  clearWishlist,
+  clearWishlistItems,
   clearWishlistError,
   addToWishlistLocal,
   removeFromWishlistLocal,
@@ -19,8 +20,9 @@ import {
 
 export const useWishlist = () => {
   const dispatch = useDispatch();
-  
-  // Get all wishlist state from Redux
+  const [enrichedItems, setEnrichedItems] = useState([]);
+  const [enriching, setEnriching] = useState(false);
+
   const {
     wishlist,
     items,
@@ -34,10 +36,10 @@ export const useWishlist = () => {
     toggling,
     checking,
     moving,
+    clearing,
     itemChecks
-  } = useSelector(state => state.wishlist);
+  } = useSelector(state => state.wishlist || {});
 
-  // Check if user is authenticated
   const isAuthenticated = () => !!localStorage.getItem('token');
 
   // Load wishlist on mount for authenticated users
@@ -47,7 +49,86 @@ export const useWishlist = () => {
     }
   }, [dispatch]);
 
-  // Create wishlist
+  // Enrich wishlist items with product details (cached in enrichedItems)
+  useEffect(() => {
+    const enrichItems = async () => {
+      if (!Array.isArray(items) || items.length === 0) {
+        setEnrichedItems([]);
+        return;
+      }
+
+      setEnriching(true);
+      try {
+        const enrichedPromises = items.map(async (item) => {
+          const productId = typeof item.product === 'object' ? item.product._id : item.product;
+
+          // If product object already present
+          if (typeof item.product === 'object' && item.product._id) {
+            const productObj = item.product;
+            return {
+              _id: item._id,
+              id: productId,
+              addedAt: item.addedAt,
+              priceWhenAdded: item.priceWhenAdded,
+              // full product details (preserve shape)
+              ...productObj,
+              image: productObj.colors?.[0]?.images?.[0] || productObj.images?.[0] || '',
+              images: productObj.colors?.[0]?.images || productObj.images || [],
+              colors: productObj.colors || []
+            };
+          }
+
+          // otherwise fetch product details from API
+          try {
+            const response = await apiService.getProductById(productId);
+            const product = response.data;
+            return {
+              _id: item._id,
+              id: productId,
+              addedAt: item.addedAt,
+              priceWhenAdded: item.priceWhenAdded,
+              name: product.name,
+              brand: product.name,
+              description: product.description,
+              price: product.price,
+              originalPrice: product.originalPrice,
+              rating: product.rating || 5,
+              image: product.colors?.[0]?.images?.[0] || product.images?.[0] || '',
+              images: product.colors?.[0]?.images || product.images || [],
+              colors: product.colors || [],
+              category: product.category,
+              subcategory: product.subcategory
+            };
+          } catch (fetchError) {
+            console.error(`Failed to fetch product ${productId}:`, fetchError);
+            // Minimal fallback so UI still shows item
+            return {
+              _id: item._id,
+              id: productId,
+              addedAt: item.addedAt,
+              priceWhenAdded: item.priceWhenAdded,
+              name: 'Product',
+              price: item.priceWhenAdded,
+              image: '',
+              images: [],
+              colors: []
+            };
+          }
+        });
+
+        const enriched = await Promise.all(enrichedPromises);
+        setEnrichedItems(enriched);
+      } catch (err) {
+        console.error('Failed to enrich wishlist items:', err);
+      } finally {
+        setEnriching(false);
+      }
+    };
+
+    enrichItems();
+  }, [items]);
+
+  // CREATE / ADD / REMOVE / TOGGLE (unchanged)
   const createUserWishlist = useCallback(async (name = "My Wishlist", isPublic = false) => {
     try {
       await dispatch(createWishlist({ name, isPublic })).unwrap();
@@ -58,92 +139,63 @@ export const useWishlist = () => {
     }
   }, [dispatch]);
 
-  // Add item to wishlist
   const addItemToWishlist = useCallback(async (product) => {
-    if (!isAuthenticated()) {
-      console.warn('User must be authenticated to use wishlist');
-      return { success: false, error: 'Authentication required' };
-    }
+    if (!isAuthenticated()) return { success: false, error: 'Authentication required' };
 
     const productId = product.id || product._id;
     const priceWhenAdded = product.price;
 
     try {
-      // Optimistic update
       dispatch(addToWishlistLocal({ product, priceWhenAdded }));
-
-      // API call
       await dispatch(addToWishlist({ productId, priceWhenAdded })).unwrap();
       return { success: true };
     } catch (error) {
       console.error('Failed to add to wishlist:', error);
-      // Revert optimistic update
       dispatch(removeFromWishlistLocal(productId));
       return { success: false, error };
     }
   }, [dispatch]);
 
-  // Remove item from wishlist
   const removeItemFromWishlist = useCallback(async (productId) => {
-    if (!isAuthenticated()) {
-      return { success: false, error: 'Authentication required' };
-    }
+    if (!isAuthenticated()) return { success: false, error: 'Authentication required' };
 
     try {
-      // Optimistic update
       dispatch(removeFromWishlistLocal(productId));
-
-      // API call
       await dispatch(removeFromWishlist(productId)).unwrap();
       return { success: true };
     } catch (error) {
       console.error('Failed to remove from wishlist:', error);
-      // Refresh wishlist to restore correct state
       dispatch(getWishlist());
       return { success: false, error };
     }
   }, [dispatch]);
 
-  // Toggle wishlist item (add/remove)
-  const toggleWishlistItem = useCallback(async (product) => {
-    if (!isAuthenticated()) {
-      return { success: false, error: 'Authentication required' };
-    }
+  const toggleWishlistItemAction = useCallback(async (product) => {
+    if (!isAuthenticated()) return { success: false, error: 'Authentication required' };
 
     const productId = product.id || product._id;
     const priceWhenAdded = product.price;
     const isCurrentlyInWishlist = itemChecks[productId] || false;
 
     try {
-      // Optimistic update
       if (isCurrentlyInWishlist) {
         dispatch(removeFromWishlistLocal(productId));
       } else {
         dispatch(addToWishlistLocal({ product, priceWhenAdded }));
       }
-
-      // API call
       const result = await dispatch(toggleWishlistItem({ productId, priceWhenAdded })).unwrap();
-      
-      // Refresh wishlist to get latest state
       dispatch(getWishlist());
-      
       return { success: true, action: result.action };
     } catch (error) {
       console.error('Failed to toggle wishlist item:', error);
-      // Revert optimistic update
       dispatch(updateItemCheck({ productId, exists: isCurrentlyInWishlist }));
       return { success: false, error };
     }
   }, [dispatch, itemChecks]);
 
-  // Check if item exists in wishlist
   const checkIfInWishlist = useCallback(async (productId) => {
-    if (!isAuthenticated()) {
-      return { success: false, exists: false };
-    }
+    if (!isAuthenticated()) return { success: false, exists: false };
 
-    // Return cached result if available
     if (itemChecks.hasOwnProperty(productId)) {
       return { success: true, exists: itemChecks[productId] };
     }
@@ -157,97 +209,126 @@ export const useWishlist = () => {
     }
   }, [dispatch, itemChecks]);
 
-  // Move item to cart and remove from wishlist
-  const moveItemToCart = useCallback(async (productId) => {
-    if (!isAuthenticated()) {
-      return { success: false, error: 'Authentication required' };
-    }
+  // ---------- NEW/UPDATED: Move item to cart (single) ----------
+  // Accepts either productId or product object; optional overrides for size/color/image
+  const moveItemToCart = useCallback(async (productOrId, quantity = 1, size = 'M', colorName = '', colorHex = '', selectedImage = '') => {
+    if (!isAuthenticated()) return { success: false, error: 'Authentication required' };
+
+    // Determine productId and try to find an enriched item
+    const productId = typeof productOrId === 'string' ? productOrId : (productOrId.id || productOrId._id);
+    let productObj = enrichedItems.find(it => (it.id === productId || it._id === productId));
 
     try {
-      await dispatch(moveWishlistItemToCart(productId)).unwrap();
+      // If we don't have product details, fetch product info from API
+      if (!productObj) {
+        const resp = await apiService.getProductById(productId);
+        productObj = resp.data;
+      }
+
+      // Pick default color from productObj.colors[0] if caller didn't provide colorName
+      const defaultColor = (productObj && Array.isArray(productObj.colors) && productObj.colors.length > 0)
+        ? (productObj.colors[0])
+        : { colorName: 'Default', colorHex: '#000000' };
+
+      const finalColorName = colorName && colorName.trim() ? colorName : (defaultColor.colorName || defaultColor.name || 'Default');
+      const finalColorHex = colorHex && colorHex.trim() ? colorHex : (defaultColor.colorHex || defaultColor.hex || '#000000');
+
+      // Pick a sensible selectedImage if none passed
+      const finalImage = selectedImage && selectedImage.trim()
+        ? selectedImage
+        : (productObj?.colors?.[0]?.images?.[0] || productObj?.images?.[0] || productObj?.image || '');
+
+      // Dispatch the thunk that calls POST /wishlist/move-to-cart/:productId
+      await dispatch(moveWishlistItemToCart({
+        productId,
+        quantity,
+        size: size.toLowerCase(),
+        colorName: finalColorName,
+        colorHex: finalColorHex,
+        selectedImage: finalImage
+      })).unwrap();
+
+      // Successful
       return { success: true };
     } catch (error) {
       console.error('Failed to move item to cart:', error);
-      return { success: false, error };
+      // Return a user-friendly message where possible
+      const message = error?.message || (error?.payload ? error.payload : 'Failed to move item to cart');
+      return { success: false, error: message };
     }
-  }, [dispatch]);
+  }, [dispatch, enrichedItems]);
 
-  // Move all items to cart
+  // ---------- NEW/UPDATED: Move ALL wishlist items to cart (bulk) ----------
   const moveAllToCart = useCallback(async () => {
-    if (!isAuthenticated() || items.length === 0) {
-      return { success: false, error: 'No items to move or authentication required' };
-    }
-
-    try {
-      const results = await Promise.allSettled(
-        items.map(item => {
-          const productId = item.product._id || item.product;
-          return dispatch(moveWishlistItemToCart(productId)).unwrap();
-        })
-      );
-
-      const successes = results.filter(result => result.status === 'fulfilled').length;
-      const failures = results.filter(result => result.status === 'rejected').length;
-
-      return { 
-        success: failures === 0, 
-        moved: successes, 
-        failed: failures 
-      };
-    } catch (error) {
-      console.error('Failed to move items to cart:', error);
-      return { success: false, error };
-    }
-  }, [dispatch, items]);
-
-  // Clear entire wishlist
-  const clearWishlistItems = useCallback(async () => {
     if (!isAuthenticated()) {
       return { success: false, error: 'Authentication required' };
     }
-
-    if (items.length === 0) {
-      return { success: true, message: 'Wishlist is already empty' };
+    if (!enrichedItems || enrichedItems.length === 0) {
+      return { success: false, error: 'No items to move' };
     }
 
     try {
-      // Remove all items individually (API doesn't have clear all endpoint)
       const results = await Promise.allSettled(
-        items.map(item => {
-          const productId = item.product._id || item.product;
-          return dispatch(removeFromWishlist(productId)).unwrap();
+        enrichedItems.map(async (item) => {
+          const productId = item.id || item._id;
+          // Derive default color and image the same way as single-item flow
+          const defaultColor = (item && Array.isArray(item.colors) && item.colors.length > 0)
+            ? item.colors[0]
+            : { colorName: 'Default', colorHex: '#000000' };
+
+          const colorName = defaultColor.colorName || defaultColor.name || 'Default';
+          const colorHex = defaultColor.colorHex || defaultColor.hex || '#000000';
+          const selectedImage = item.image || item.images?.[0] || '';
+
+          // call the thunk; unwrap inside map so Promise reflects success/rejection
+          return dispatch(moveWishlistItemToCart({
+            productId,
+            quantity: 1,
+            size: 'm',
+            colorName,
+            colorHex,
+            selectedImage
+          })).unwrap();
         })
       );
 
-      const failures = results.filter(result => result.status === 'rejected').length;
-      
-      if (failures === 0) {
-        dispatch(clearWishlist());
-        return { success: true };
-      } else {
-        // Refresh to get current state
-        dispatch(getWishlist());
-        return { success: false, error: `Failed to remove ${failures} items` };
-      }
+      const successes = results.filter(r => r.status === 'fulfilled').length;
+      const failures = results.filter(r => r.status === 'rejected').length;
+
+      return {
+        success: failures === 0,
+        moved: successes,
+        failed: failures,
+        details: results
+      };
+    } catch (error) {
+      console.error('Failed to move all items to cart:', error);
+      return { success: false, error };
+    }
+  }, [dispatch, enrichedItems]);
+
+  // Clear wishlist
+  const clearWishlistItemsAction = useCallback(async () => {
+    if (!isAuthenticated()) return { success: false, error: 'Authentication required' };
+    if (!enrichedItems || enrichedItems.length === 0) return { success: true, message: 'Wishlist already empty' };
+
+    try {
+      await dispatch(clearWishlistItems()).unwrap();
+      return { success: true };
     } catch (error) {
       console.error('Failed to clear wishlist:', error);
       return { success: false, error };
     }
-  }, [dispatch, items]);
+  }, [dispatch, enrichedItems]);
 
-  // Refresh wishlist data
+  // Refresh wishlist
   const refreshWishlist = useCallback(() => {
-    if (isAuthenticated()) {
-      dispatch(getWishlist());
-    }
+    if (isAuthenticated()) dispatch(getWishlist());
   }, [dispatch]);
 
   // Get wishlist count
   const getCount = useCallback(async () => {
-    if (!isAuthenticated()) {
-      return { success: false, count: 0 };
-    }
-
+    if (!isAuthenticated()) return { success: false, count: 0 };
     try {
       await dispatch(getWishlistCount()).unwrap();
       return { success: true };
@@ -262,73 +343,62 @@ export const useWishlist = () => {
     dispatch(clearWishlistError());
   }, [dispatch]);
 
-  // Helper functions
+  // Helpers
   const isItemInWishlist = useCallback((productId) => {
-    return itemChecks[productId] || false;
+    return !!itemChecks[productId];
   }, [itemChecks]);
 
   const getWishlistItemsCount = useCallback(() => {
-    return count || total || items.length;
-  }, [count, total, items.length]);
+    return count || total || enrichedItems.length;
+  }, [count, total, enrichedItems.length]);
 
-  const isWishlistEmpty = useCallback(() => {
-    return items.length === 0;
-  }, [items]);
+  const isWishlistEmpty = useCallback(() => !enrichedItems || enrichedItems.length === 0, [enrichedItems]);
 
   const getWishlistTotal = useCallback(() => {
-    return items.reduce((total, item) => total + (item.priceWhenAdded || 0), 0);
-  }, [items]);
-
-  // Transform items for backward compatibility with existing component
-  const wishlistItems = items.map(item => ({
-    id: item.product._id || item.product,
-    _id: item._id,
-    addedAt: item.addedAt,
-    priceWhenAdded: item.priceWhenAdded,
-    // Include product data if populated
-    ...((typeof item.product === 'object') ? item.product : {})
-  }));
+    return enrichedItems.reduce((sum, it) => sum + (it.priceWhenAdded || it.price || 0), 0);
+  }, [enrichedItems]);
 
   return {
     // State
     wishlist,
-    items,
-    wishlistItems, // Backward compatibility
-    loading,
+    items: enrichedItems,
+    wishlistItems: enrichedItems,
+    loading: loading || enriching,
     error,
     total,
     count: getWishlistItemsCount(),
-    
-    // Loading states
+
+    // Loading flags
     creating,
     adding,
     removing,
     toggling,
     checking,
     moving,
-    
-    // Item checks cache
+    clearing,
+
+    // Cache
     itemChecks,
-    
+
     // Actions
     addToWishlist: addItemToWishlist,
     removeFromWishlist: removeItemFromWishlist,
-    toggleWishlist: toggleWishlistItem,
+    toggleWishlist: toggleWishlistItemAction,
     moveToCart: moveItemToCart,
     moveAllToCart,
-    clearWishlist: clearWishlistItems,
+    clearWishlist: clearWishlistItemsAction,
     createWishlist: createUserWishlist,
     checkWishlistItem: checkIfInWishlist,
     refreshWishlist,
     getWishlistCount: getCount,
     clearErrors,
-    
+
     // Helpers
     isItemInWishlist,
     isWishlistEmpty,
     getWishlistTotal,
     isAuthenticated: isAuthenticated(),
-    
+
     // Computed values
     totalValue: getWishlistTotal(),
     itemCount: getWishlistItemsCount()

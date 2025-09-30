@@ -1,4 +1,4 @@
-// src/components/WishlistContext.jsx - Updated to work with Redux
+// src/components/WishlistContext.jsx - Updated for new API structure
 import React, { createContext, useContext } from "react";
 import { useWishlist as useWishlistHook } from "../hooks/useWishlist";
 import Notification from "./Notification";
@@ -12,6 +12,7 @@ export const WishlistProvider = ({ children }) => {
     loading,
     error,
     count,
+    clearing, // Added clearing state
     
     // Actions from hook
     addToWishlist: addToWishlistAction,
@@ -103,10 +104,10 @@ export const WishlistProvider = ({ children }) => {
     return result;
   };
 
-  // Move item to cart with notification
-  const moveItemToCart = async (productId) => {
+  // Move item to cart with enhanced parameters - Updated for new API
+  const moveItemToCart = async (productId, quantity = 1, size = 'M', colorName = '', colorHex = '#000000', selectedImage = '') => {
     const item = wishlistItems.find(item => (item.id || item._id) === productId);
-    const result = await moveToCart(productId);
+    const result = await moveToCart(productId, quantity, size, colorName, colorHex, selectedImage);
     
     if (result.success && item) {
       showNotification(`${item.brand || item.name} moved to cart!`);
@@ -138,7 +139,7 @@ export const WishlistProvider = ({ children }) => {
     return result;
   };
 
-  // Clear wishlist with notification
+  // Clear wishlist with notification - Updated for new API
   const clearWishlistItems = async () => {
     if (isWishlistEmpty()) {
       showNotification('Your wishlist is already empty', 'info');
@@ -174,6 +175,7 @@ export const WishlistProvider = ({ children }) => {
     loading,
     error,
     count,
+    clearing, // Added clearing state
     
     // Helpers
     isItemInWishlist,

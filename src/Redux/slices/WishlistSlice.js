@@ -1,4 +1,4 @@
-// src/Redux/slices/wishlistSlice.js - Updated for new API
+// src/Redux/slices/wishlistSlice.js - Updated for new API structure
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { apiService } from '../../services/api';
 
@@ -67,8 +67,8 @@ export const removeFromWishlist = createAsyncThunk(
   'wishlist/removeFromWishlist',
   async (productId, { rejectWithValue }) => {
     try {
-      await apiService.removeFromWishlist(productId);
-      return productId;
+      const response = await apiService.removeFromWishlist(productId);
+      return { productId, data: response.data };
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -89,10 +89,22 @@ export const getWishlistCount = createAsyncThunk(
 
 export const moveWishlistItemToCart = createAsyncThunk(
   'wishlist/moveWishlistItemToCart',
-  async (productId, { rejectWithValue }) => {
+  async ({ productId, quantity = 1, size = 'M', colorName = '', colorHex = '#000000', selectedImage = '' }, { rejectWithValue }) => {
     try {
-      const response = await apiService.moveWishlistItemToCart(productId);
-      return { productId, wishlist: response.data.wishlist };
+      const response = await apiService.moveWishlistItemToCart(productId, quantity, size, colorName, colorHex, selectedImage);
+      return { productId, ...response.data };
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+export const clearWishlistItems = createAsyncThunk(
+  'wishlist/clearWishlistItems',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await apiService.clearWishlist();
+      return response.data;
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -113,6 +125,7 @@ const initialState = {
   toggling: false,
   checking: false,
   moving: false,
+  clearing: false,
   // Check cache for items
   itemChecks: {} // { productId: boolean }
 };
@@ -135,20 +148,21 @@ const wishlistSlice = createSlice({
     // Optimistic updates
     addToWishlistLocal: (state, action) => {
       const { product, priceWhenAdded } = action.payload;
+      const productId = product._id || product.id;
       const existingItem = state.items.find(item => 
-        item.product === product._id || item.product._id === product._id
+        item.product === productId || item.product._id === productId
       );
       
       if (!existingItem) {
         state.items.push({
-          product: product._id,
+          product: productId,
           priceWhenAdded: priceWhenAdded || product.price,
           addedAt: new Date().toISOString(),
           _id: 'temp_' + Date.now()
         });
         state.total = state.items.length;
         state.count = state.items.length;
-        state.itemChecks[product._id] = true;
+        state.itemChecks[productId] = true;
       }
     },
     removeFromWishlistLocal: (state, action) => {
@@ -206,6 +220,14 @@ const wishlistSlice = createSlice({
       .addCase(getWishlist.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+        // Reset to empty state if wishlist doesn't exist
+        if (action.payload && action.payload.includes('not found')) {
+          state.wishlist = null;
+          state.items = [];
+          state.total = 0;
+          state.count = 0;
+          state.itemChecks = {};
+        }
       })
       
       // Add to Wishlist
@@ -259,9 +281,6 @@ const wishlistSlice = createSlice({
         } else if (apiAction === 'removed') {
           state.itemChecks[productId] = false;
         }
-        
-        // Refresh wishlist after toggle
-        // Note: You might want to dispatch getWishlist here
       })
       .addCase(toggleWishlistItem.rejected, (state, action) => {
         state.toggling = false;
@@ -275,13 +294,15 @@ const wishlistSlice = createSlice({
       })
       .addCase(removeFromWishlist.fulfilled, (state, action) => {
         state.removing = false;
-        const productId = action.payload;
-        state.items = state.items.filter(item => 
-          item.product !== productId && 
-          (item.product._id !== productId)
-        );
-        state.total = state.items.length;
-        state.count = state.items.length;
+        const { productId, data } = action.payload;
+        
+        if (data) {
+          state.wishlist = data;
+          state.items = data.items || [];
+          state.total = state.items.length;
+          state.count = state.items.length;
+        }
+        
         state.itemChecks[productId] = false;
       })
       .addCase(removeFromWishlist.rejected, (state, action) => {
@@ -302,14 +323,36 @@ const wishlistSlice = createSlice({
       .addCase(moveWishlistItemToCart.fulfilled, (state, action) => {
         state.moving = false;
         const { productId, wishlist } = action.payload;
-        state.wishlist = wishlist;
-        state.items = wishlist.items || [];
-        state.total = state.items.length;
-        state.count = state.items.length;
+        
+        if (wishlist) {
+          state.wishlist = wishlist;
+          state.items = wishlist.items || [];
+          state.total = state.items.length;
+          state.count = state.items.length;
+        }
+        
         state.itemChecks[productId] = false;
       })
       .addCase(moveWishlistItemToCart.rejected, (state, action) => {
         state.moving = false;
+        state.error = action.payload;
+      })
+      
+      // Clear Wishlist
+      .addCase(clearWishlistItems.pending, (state) => {
+        state.clearing = true;
+        state.error = null;
+      })
+      .addCase(clearWishlistItems.fulfilled, (state) => {
+        state.clearing = false;
+        state.wishlist = null;
+        state.items = [];
+        state.total = 0;
+        state.count = 0;
+        state.itemChecks = {};
+      })
+      .addCase(clearWishlistItems.rejected, (state, action) => {
+        state.clearing = false;
         state.error = action.payload;
       });
   }

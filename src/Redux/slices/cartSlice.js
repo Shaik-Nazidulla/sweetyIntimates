@@ -9,8 +9,16 @@ export const fetchCartDetails = createAsyncThunk(
   'cart/fetchCartDetails',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await apiService.smartGetCartDetails();
-      return response.data;
+      const isAuth = !!localStorage.getItem('token');
+      
+      if (isAuth) {
+        const response = await apiService.getCartDetails();
+        return response.data;
+      } else {
+        const sessionId = apiService.getSessionId();
+        const response = await apiService.getGuestCartDetails(sessionId);
+        return response.data;
+      }
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -86,10 +94,13 @@ export const validateCartAsync = createAsyncThunk(
 export const mergeCartAsync = createAsyncThunk(
   'cart/mergeCartAsync',
   async (sessionId, { rejectWithValue }) => {
+    console.log('🔄 Attempting to merge cart with sessionId:', sessionId);
     try {
       const response = await apiService.mergeCart(sessionId);
+      console.log('✅ Cart merged successfully:', response.data);
       return response.data;
     } catch (error) {
+      console.error('❌ Cart merge failed:', error);
       return rejectWithValue(error.message);
     }
   }

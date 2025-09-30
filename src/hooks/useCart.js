@@ -1,4 +1,4 @@
-// src/hooks/useCart.js - Updated with guest cart support and proper error handling
+// src/hooks/useCart.js 
 import { useSelector, useDispatch } from 'react-redux';
 import { useCallback, useEffect } from 'react';
 import {
@@ -84,6 +84,20 @@ export const useCart = () => {
   useEffect(() => {
     dispatch(fetchCartDetails());
   }, [dispatch, isAuthenticated]);
+
+  // Auto-merge cart when user logs in
+  useEffect(() => {
+    const handleAuthChange = async () => {
+      const sessionId = localStorage.getItem('guestSessionId');
+      if (isAuthenticated && sessionId) {
+        await dispatch(mergeCartAsync(sessionId));
+        localStorage.removeItem('guestSessionId');
+        dispatch(fetchCartDetails());
+      }
+    };
+    
+    handleAuthChange();
+  }, [isAuthenticated, dispatch]);
 
   // Add item to cart with enhanced parameters and better error handling
   const addItemToCart = useCallback(async (product, quantity = 1, selectedColor = '', selectedSize = 'M', selectedImage = '') => {

@@ -107,6 +107,20 @@ export const CartProvider = ({ children }) => {
     }
   }, [addError, updateError, removeError, clearError, validateError, mergeError, discountError, isAuthenticated]);
 
+  // Auto-merge cart when user logs in
+useEffect(() => {
+  const handleAuthChange = async () => {
+    const sessionId = localStorage.getItem('guestSessionId');
+    if (isAuthenticated && sessionId) {
+      await dispatch(mergeCartAsync(sessionId));
+      localStorage.removeItem('guestSessionId');
+      dispatch(fetchCartDetails());
+    }
+  };
+  
+  handleAuthChange();
+}, [isAuthenticated, dispatch]);
+
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
   };

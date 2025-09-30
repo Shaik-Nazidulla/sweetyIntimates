@@ -116,23 +116,26 @@ const UserProfile = () => {
   };
 
   const handleUpdateProfile = async (e) => {
-    e.preventDefault();
-    try {
-      setLoading(true);
-      setError("");
-      setSuccess("");
-      
-      const response = await apiService.updateUserProfile(formData);
-      setProfileData(response.data);
-      setSuccess("Profile updated successfully!");
-      setEditing(false);
-    } catch (error) {
-      setError("Failed to update profile");
-      console.error("Profile update error:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  e.preventDefault();
+  try {
+    setLoading(true);
+    setError("");
+    setSuccess("");
+    
+    // Don't send email since it can't be updated
+    const { email, ...updateData } = formData;
+    
+    const response = await apiService.updateUserProfile(updateData);
+    setProfileData(response.data);
+    setSuccess("Profile updated successfully!");
+    setEditing(false);
+  } catch (error) {
+    setError(error.message || "Failed to update profile");
+    console.error("Profile update error:", error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleLogout = () => {
     dispatch(logout());
@@ -278,7 +281,7 @@ const UserProfile = () => {
                           name="email"
                           value={formData.email}
                           onChange={handleInputChange}
-                          disabled={!editing}
+                          disabled={true}
                           className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 disabled:bg-gray-100"
                         />
                       </div>

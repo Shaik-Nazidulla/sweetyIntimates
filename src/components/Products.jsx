@@ -658,34 +658,6 @@ const Products = ({ category: propCategory, subcategory: propSubcategory, title:
         </div>
       </div>
 
-      {/* Subcategory Navigation */}
-      {!currentSubcategoryName && !isSearchMode && subcategories && subcategories.length > 0 && (
-        <div className="bg-white border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex flex-wrap justify-center gap-4">
-              <Link
-                to={getCategoryPath(categoryConfig)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200 ${
-                  !currentSubcategoryName 
-                    ? "bg-pink-500 text-white" 
-                    : "bg-gray-100 text-gray-700 hover:bg-pink-100 hover:text-pink-600"
-                }`}
-              >
-                All {categoryConfig?.name || 'Products'}
-              </Link>
-              {subcategories.map((subcategory) => (
-                <Link
-                  key={subcategory._id}
-                  to={getSubcategoryPath(categoryConfig, subcategory)}
-                  className="px-4 py-2 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-pink-100 hover:text-pink-600 transition-colors duration-200"
-                >
-                  {subcategory.name}
-                </Link>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
         {/* Page Header */}

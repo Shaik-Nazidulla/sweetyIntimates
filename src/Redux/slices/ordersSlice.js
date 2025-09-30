@@ -2,7 +2,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { apiService } from '../../services/api';
 
-// Async thunks for order operations
 export const createOrder = createAsyncThunk(
   'orders/createOrder',
   async (orderData, { rejectWithValue }) => {
@@ -96,7 +95,7 @@ const initialState = {
   orderLoading: false,
   searchLoading: false,
   statsLoading: false,
-  actionLoading: false, // For cancel/return operations
+  actionLoading: false, 
   error: null,
   orderError: null,
   searchError: null,
@@ -145,15 +144,17 @@ const ordersSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // Create Order
       .addCase(createOrder.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(createOrder.fulfilled, (state, action) => {
         state.loading = false;
-        // Add the new order to the beginning of the orders list
-        state.orders.unshift(action.payload);
+        const orderWithId = {
+          ...action.payload,
+          _id: action.payload.orderId || action.payload._id
+        };
+        state.orders.unshift(orderWithId);
       })
       .addCase(createOrder.rejected, (state, action) => {
         state.loading = false;

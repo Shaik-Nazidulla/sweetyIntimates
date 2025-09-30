@@ -1,4 +1,4 @@
-// cart.jsx - Updated for new API integration with proper guest cart support
+// cart.jsx 
 import { useSelector } from 'react-redux';
 import { useCart } from "../hooks/useCart";
 import { useWishlist } from "./WishlistContext";
@@ -140,16 +140,6 @@ const CartItem = ({ item, updateQuantity, deleteItem, addToWishlist, renderStars
         >
           {item.product?.name || item.name}
         </div>
-        
-        {/* Product ID for debugging */}
-        <div className="text-xs text-gray-400 mb-1">
-          ID: {item.product?._id || item._id}
-        </div>
-
-        <div className="text-pink-600 text-sm mb-2">
-          {renderStars(item.product?.rating || 5)}
-        </div>
-
         {/* Color and Size */}
         {(item.color?.colorName || item.size) && (
           <div className="flex gap-2 mb-2">
@@ -188,9 +178,6 @@ const CartItem = ({ item, updateQuantity, deleteItem, addToWishlist, renderStars
           </div>
         </div>
 
-        <div className="text-gray-600 text-xs mb-4">
-          FREE delivery <span className="font-semibold text-gray-800">Tomorrow 8am - 12pm</span>
-        </div>
 
         {/* Quantity + Actions */}
         <div className="flex items-center gap-3 mb-4">
@@ -217,12 +204,6 @@ const CartItem = ({ item, updateQuantity, deleteItem, addToWishlist, renderStars
           </div>
 
           <div className="flex gap-2 text-xs">
-            <button
-              className="wishlist-btn text-pink-600 hover:underline"
-              onClick={handleAddToWishlist}
-            >
-              Add to Wishlist
-            </button>
             <span className="text-gray-300">|</span>
             <button className="text-pink-600 hover:underline" onClick={handleShare}>
               Share
@@ -248,15 +229,6 @@ const CartItem = ({ item, updateQuantity, deleteItem, addToWishlist, renderStars
             {item.product?.name || item.name}
           </div>
           
-          {/* Product ID for debugging */}
-          <div className="text-xs text-gray-400 mb-1">
-            ID: {item.product?._id || item._id}
-          </div>
-
-          <div className="text-pink-600 text-sm mb-2">
-            {renderStars(item.product?.rating || 5)}
-          </div>
-
           {/* Color and Size */}
           {(item.color?.colorName || item.size) && (
             <div className="flex gap-2 mb-2">
@@ -276,10 +248,6 @@ const CartItem = ({ item, updateQuantity, deleteItem, addToWishlist, renderStars
               )}
             </div>
           )}
-
-          <div className="text-gray-600 text-xs mb-4">
-            FREE delivery <span className="font-semibold text-gray-800">Tomorrow 8am - 12pm</span>
-          </div>
 
           <div className="flex items-center gap-3 mb-4">
             <div className="flex items-center border border-pink-300 rounded-full overflow-hidden">
@@ -305,12 +273,6 @@ const CartItem = ({ item, updateQuantity, deleteItem, addToWishlist, renderStars
             </div>
 
             <div className="flex gap-2 text-xs">
-              <button 
-                className="wishlist-btn text-pink-600 hover:underline" 
-                onClick={handleAddToWishlist}
-              >
-                Add to Wishlist
-              </button>
               <span className="text-gray-300">|</span>
               <button className="text-pink-600 hover:underline" onClick={handleShare}>
                 Share
@@ -325,9 +287,6 @@ const CartItem = ({ item, updateQuantity, deleteItem, addToWishlist, renderStars
             <div className="bg-pink-600 text-white text-xs px-2 py-1 rounded mb-1 inline-block animate-pulse">
               {discount}% OFF
             </div>
-          )}
-          {discount > 0 && (
-            <div className="text-sm text-pink-600 font-semibold">{discount}%</div>
           )}
           <div className="text-lg font-semibold text-gray-800">
             ₹{currentPrice > 0 ? currentPrice.toLocaleString() : '0'}
@@ -519,6 +478,8 @@ const CouponSection = ({ onApplyDiscount, onRemoveDiscount, hasDiscount, applied
 };
 
 const Cart = () => {
+  const navigate = useNavigate();
+
   const { 
     items: cartItems, 
     totals,
@@ -574,16 +535,19 @@ const Cart = () => {
     const fetchDeals = async () => {
       try {
         setDealsLoading(true);
-        const response = await apiService.getAllProducts(1, 8); // Get more products to filter from
+        // Fetch more products to have a better pool for randomization
+        const response = await apiService.getAllProducts(1, 20); 
         
         if (response && response.products) {
-          // Filter out products that are already in cart
+          // Filter out cart items
           const cartProductIds = cartItems.map(item => item.product?._id || item.productId);
-          const availableDeals = response.products
-            .filter(product => !cartProductIds.includes(product._id))
-            .slice(0, 6); // Limit to 6 deals
+          let availableProducts = response.products.filter(
+            product => !cartProductIds.includes(product._id)
+          );
           
-          setDeals(availableDeals);
+          // Randomize and pick 6
+          const shuffled = availableProducts.sort(() => Math.random() - 0.5);
+          setDeals(shuffled.slice(0, 6));
         }
       } catch (error) {
         console.error('Failed to fetch deals:', error);
@@ -592,9 +556,12 @@ const Cart = () => {
         setDealsLoading(false);
       }
     };
-
-    fetchDeals();
-  }, [cartItems]);
+  
+    // Only fetch if we have cart items loaded
+    if (!loading) {
+      fetchDeals();
+    }
+  }, [cartItems, loading]); // Re-fetch when cart changes
 
   const handleApplyDiscount = async (code) => {
     return await applyDiscount(code);
@@ -658,6 +625,7 @@ const Cart = () => {
               loading={applyingDiscount || removingDiscount}
             />
             <button 
+              onClick={() => navigate('/checkout')}
               className="bg-pink-600 text-white py-3 rounded-3xl text-sm font-semibold hover:bg-pink-700 disabled:opacity-50" 
               disabled={!cartItems.length}
             >
@@ -814,8 +782,9 @@ const Cart = () => {
                   appliedDiscount={appliedDiscount}
                   loading={applyingDiscount || removingDiscount}
                 />
-                <button
-                  className="bg-pink-600 text-white py-3 rounded-3xl text-sm font-semibold hover:bg-pink-700 disabled:opacity-50"
+                <button 
+                  onClick={() => navigate('/checkout')}
+                  className="bg-pink-600 text-white py-3 rounded-3xl text-sm font-semibold hover:bg-pink-700 disabled:opacity-50" 
                   disabled={!cartItems.length}
                 >
                   Proceed to Buy ({getTotalItems()} items)

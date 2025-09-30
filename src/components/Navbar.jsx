@@ -32,6 +32,7 @@ const Navbar = () => {
   // Redux state
   const { isAuthenticated, user } = useSelector(state => state.auth);
   const { cartItems } = useCart();
+  const { count: wishlistCount } = useSelector(state => state.wishlist);
   
   // Refs
   const searchRef = useRef(null);
@@ -551,15 +552,22 @@ const Navbar = () => {
                 <div className="relative group">
                   <button 
                     onClick={() => navigate("/Wishlist")}
-                    className="p-1 text-pink-500 hover:text-pink-600 hover:bg-pink-50 rounded-md transition-all duration-200 hover:scale-105"
+                    className="p-1 text-pink-500 hover:text-pink-600 hover:bg-pink-50 rounded-md transition-all duration-200 hover:scale-105 relative"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                     </svg>
+                    
+                    {/* Wishlist Count Badge - ADD THIS */}
+                    {wishlistCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-pink-500 text-white text-xs rounded-full w-3 h-3 flex items-center justify-center">
+                        {wishlistCount}
+                      </span>
+                    )}
                   </button>
-                  {/* Tooltip */}
-                  <div className="absolute top-full mb-2 left-1/2 transform -translate-x-1/2 px-2  bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
-                    Wishlist
+                  {/* Tooltip - UPDATE THIS */}
+                  <div className="absolute top-full mb-2 left-1/2 transform -translate-x-1/2 px-2 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
+                    Wishlist {wishlistCount > 0 && `(${wishlistCount})`}
                   </div>
                 </div>
 

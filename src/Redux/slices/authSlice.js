@@ -417,6 +417,9 @@ const authSlice = createSlice({
         state.isInitialized = true;
         state.error = null;
         state.successMessage = 'Login successful!';
+        
+        // Trigger cart merge - dispatch this from your login component
+        state.needsCartMerge = true;
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.loginLoading = false;
