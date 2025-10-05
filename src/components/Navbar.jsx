@@ -15,6 +15,7 @@ import {
   searchSubcategories 
 } from '../Redux/slices/subcategorySlice';
 import Logo from "/LOGO.png";
+import WavyBg from "/wavy-bg.png";
 import Banner from "../components/Banner";
 import SignIn from "../pages/SignIn";
 import { useCart } from "./CartContext";
@@ -58,6 +59,144 @@ const Navbar = () => {
     searchResults: subcategoryResults, 
     searchLoading: subcategoryLoading 
   } = useSelector(state => state.subcategories);
+
+  const SearchResultsDropdown = () => {
+  return (
+    <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-2xl z-50 max-h-96 overflow-y-auto">
+      {/* Tab Navigation */}
+      <div className="flex border-b border-gray-200 bg-gray-50">
+        <button
+          onClick={() => setActiveSearchTab('products')}
+          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+            activeSearchTab === 'products'
+              ? 'text-pink-600 border-b-2 border-pink-600 bg-white'
+              : 'text-gray-600 hover:text-pink-600'
+          }`}
+        >
+          Products {productResults.length > 0 && `(${productResults.length})`}
+        </button>
+        <button
+          onClick={() => setActiveSearchTab('categories')}
+          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+            activeSearchTab === 'categories'
+              ? 'text-pink-600 border-b-2 border-pink-600 bg-white'
+              : 'text-gray-600 hover:text-pink-600'
+          }`}
+        >
+          Categories {categoryResults.length > 0 && `(${categoryResults.length})`}
+        </button>
+        <button
+          onClick={() => setActiveSearchTab('subcategories')}
+          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+            activeSearchTab === 'subcategories'
+              ? 'text-pink-600 border-b-2 border-pink-600 bg-white'
+              : 'text-gray-600 hover:text-pink-600'
+          }`}
+        >
+          Subcategories {subcategoryResults.length > 0 && `(${subcategoryResults.length})`}
+        </button>
+      </div>
+
+      {/* Tab Content */}
+      <div className="p-2">
+        {isSearchLoading ? (
+          <div className="flex justify-center items-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
+          </div>
+        ) : !hasSearchResults ? (
+          <div className="text-center py-8 text-gray-500">
+            <p>No results found for "{searchQuery}"</p>
+          </div>
+        ) : (
+          <>
+            {/* Products Tab */}
+            {activeSearchTab === 'products' && (
+              <div className="space-y-2">
+                {productResults.map((product) => (
+                  <button
+                    key={product._id}
+                    onClick={() => handleProductClick(product)}
+                    className="w-full flex items-center space-x-3 p-3 hover:bg-pink-50 rounded-lg transition-colors"
+                  >
+                    <img
+                      src={product.images?.[0] || '/placeholder.png'}
+                      alt={product.name}
+                      className="w-12 h-12 object-cover rounded"
+                    />
+                    <div className="flex-1 text-left">
+                      <p className="text-sm font-medium text-gray-800 line-clamp-1">
+                        {product.name}
+                      </p>
+                      <p className="text-xs text-gray-500">₹{product.price}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Categories Tab */}
+            {activeSearchTab === 'categories' && (
+              <div className="space-y-2">
+                {categoryResults.map((category) => (
+                  <button
+                    key={category._id}
+                    onClick={() => handleCategoryClick(category)}
+                    className="w-full flex items-center space-x-3 p-3 hover:bg-pink-50 rounded-lg transition-colors"
+                  >
+                    <div className="w-12 h-12 bg-pink-100 rounded flex items-center justify-center">
+                      <span className="text-pink-600 font-semibold">
+                        {category.name.charAt(0)}
+                      </span>
+                    </div>
+                    <p className="text-sm font-medium text-gray-800">{category.name}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Subcategories Tab */}
+            {activeSearchTab === 'subcategories' && (
+              <div className="space-y-2">
+                {subcategoryResults.map((subcategory) => {
+                  const category = categories.find(
+                    cat => cat._id === subcategory.category || cat._id === subcategory.category?._id
+                  );
+                  return (
+                    <button
+                      key={subcategory._id}
+                      onClick={() => handleSubcategoryClick(subcategory, category)}
+                      className="w-full flex items-center space-x-3 p-3 hover:bg-pink-50 rounded-lg transition-colors"
+                    >
+                      <div className="w-12 h-12 bg-purple-100 rounded flex items-center justify-center">
+                        <span className="text-purple-600 font-semibold">
+                          {subcategory.name.charAt(0)}
+                        </span>
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-medium text-gray-800">{subcategory.name}</p>
+                        {category && (
+                          <p className="text-xs text-gray-500">{category.name}</p>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* View All Results Button */}
+            <button
+              onClick={handleViewAllResults}
+              className="w-full mt-4 px-4 py-3 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-colors font-medium"
+            >
+              View All Results
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
 
   // Load categories and subcategories on mount
   useEffect(() => {
@@ -168,6 +307,7 @@ const Navbar = () => {
     navigate(`/product/${product._id}`);
     setIsSearchDropdownOpen(false);
     setSearchQueryState("");
+    setMobileMenuOpen(false);
   };
 
   const handleCategoryClick = (category) => {
@@ -230,28 +370,22 @@ const Navbar = () => {
       )}
 
       {/* Desktop Navbar - Two Row Layout with Wave Background */}
-      <div className="hidden lg:block relative">
-        {/* Wavy Pink Background */}
-        <div className="absolute inset-0 overflow-hidden">
-          <svg
-            className="absolute w-full h-full"
-            viewBox="0 0 1440 160"
-            preserveAspectRatio="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M0,0 L0,100 C160,0 320,-20 480,50 C640,140 800,180 960,50 C1120,-20 1280,0 1440,100 L1440,0 Z"
-              fill="#fce7f3"
-              opacity="0.8"
-            />
-          </svg>
+      <div className="hidden lg:block relative " style={{ height: '138px', Width: 'full', margin: '0 auto' }}>
+        {/* Wavy PNG Background */}
+        <div className="absolute inset-0 overflow-hidden ">
+          <img 
+            src={WavyBg} 
+            alt="" 
+            className="w-full h-full object-cover object-center"
+            style={{ objectFit: 'cover' }}
+          />
         </div>
 
         {/* Content Container */}
-        <div className="relative z-10">
+        <div className="relative z-10 h-full pt-7">
           {/* Row 1: Icons on the right */}
-          <div className="flex justify-end items-center px-8 pt-4 pb-2">
-            <div className="flex items-center space-x-6">
+          <div className="flex justify-end items-center px-8 pt-4 pb-2 pr-50">
+            <div className="flex items-center space-x-30 ">
               {/* Profile/Sign In */}
               {isAuthenticated ? (
                 <button 
@@ -311,217 +445,44 @@ const Navbar = () => {
               to="/"
               className="block hover:scale-105 transition-transform duration-200"
             >
-              <img src={Logo} alt="Sweety Intimate" className="h-24 w-auto" />
+              <img src={Logo} alt="Sweety Intimate" className="h-30 w-auto" />
             </Link>
           </div>
 
           {/* Row 2: Search on left, Categories split around logo */}
-          <div className="flex items-center justify-between px-50 pb-4 pt-2 ">
+          <div className="flex items-center justify-between px-20 pb-4 pt-2">
             {/* Left Side: Search Bar + First 2 Categories */}
             <div className="flex items-center space-x-8">
               {/* Search Bar */}
-              <div className="w-64 relative" ref={searchRef}>
-                <form
-                  onSubmit={handleSearch}
-                  className="relative"
-                >
-                  <div className="flex items-center bg-white border-2           border-pink-400 rounded-full px-4 py-2           focus-within:border-pink-500 focus-within:ring-2           focus-within:ring-pink-200">
-                    <svg
-                      className="w-5 h-5 text-pink-500 mr-2"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                      />
+              <div className="w-64 relative mr-30" ref={searchRef}>
+                <form onSubmit={handleSearch} className="relative">
+                  <div className="flex items-center bg-white border-2 border-pink-400 rounded-sm px-4 py-2 focus-within:border-pink-500 focus-within:ring-2 focus-within:ring-pink-200  ">
+                    <svg className="w-5 h-5 text-pink-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                     <input
                       type="text"
                       placeholder="Search"
                       value={searchQuery}
                       onChange={handleInputChange}
-                      onFocus={() => searchQuery.length > 2 &&           setIsSearchDropdownOpen(true)}
-                      className="flex-1 text-sm focus:outline-none bg-transparent           placeholder-gray-400"
+                      onFocus={() => searchQuery.length > 2 && setIsSearchDropdownOpen(true)}
+                      className="flex-1 text-sm focus:outline-none bg-transparent placeholder-gray-400"
                     />
                     {searchQuery && (
                       <button
                         type="button"
                         onClick={clearSearch}
-                        className="ml-2 text-gray-400 hover:text-pink-500           transition-colors"
+                        className="ml-2 text-gray-400 hover:text-pink-500 transition-colors"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor"           viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round"           strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                       </button>
                     )}
                   </div>
                 </form>
-          
-                {/* Search Results Dropdown */}
-                {isSearchDropdownOpen && searchQuery.length > 2 && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-white           border border-gray-200 rounded-lg shadow-xl z-50 max-h-96           overflow-hidden">
-                    {isSearchLoading ? (
-                      <div className="flex items-center justify-center py-8">
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2           border-pink-500"></div>
-                        <span className="ml-2 text-gray-600">Searching...</span>
-                      </div>
-                    ) : hasSearchResults ? (
-                      <>
-                        <div className="flex border-b border-gray-200">
-                          {productResults.length > 0 && (
-                            <button
-                              onClick={() => setActiveSearchTab('products')}
-                              className={`px-4 py-2 text-sm font-medium ${
-                                activeSearchTab === 'products'
-                                  ? 'text-pink-600 border-b-2 border-pink-600'
-                                  : 'text-gray-600 hover:text-gray-900'
-                              }`}
-                            >
-                              Products ({productResults.length})
-                            </button>
-                          )}
-                          {categoryResults.length > 0 && (
-                            <button
-                              onClick={() => setActiveSearchTab('categories')}
-                              className={`px-4 py-2 text-sm font-medium ${
-                                activeSearchTab === 'categories'
-                                  ? 'text-pink-600 border-b-2 border-pink-600'
-                                  : 'text-gray-600 hover:text-gray-900'
-                              }`}
-                            >
-                              Categories ({categoryResults.length})
-                            </button>
-                          )}
-                          {subcategoryResults.length > 0 && (
-                            <button
-                              onClick={() => setActiveSearchTab('subcategories')}
-                              className={`px-4 py-2 text-sm font-medium ${
-                                activeSearchTab === 'subcategories'
-                                  ? 'text-pink-600 border-b-2 border-pink-600'
-                                  : 'text-gray-600 hover:text-gray-900'
-                              }`}
-                            >
-                              Subcategories ({subcategoryResults.length})
-                            </button>
-                          )}
-                        </div>
-          
-                        <div className="max-h-80 overflow-y-auto">
-                          {activeSearchTab === 'products' && productResults.length >           0 && (
-                            <div>
-                              {productResults.slice(0, 5).map((product) => (
-                                <div
-                                  key={product._id}
-                                  onClick={() => handleProductClick(product)}
-                                  className="flex items-center p-3 hover:bg-gray-50           cursor-pointer border-b border-gray-100"
-                                >
-                                  <img
-                                    src={product.colors?.[0]?.images?.[0] || product.          images?.[0]}
-                                    alt={product.name}
-                                    className="w-12 h-12 object-cover rounded-md           mr-3"
-                                    onError={(e) => {
-                                      e.target.src = '/placeholder-image.jpg';
-                                    }}
-                                  />
-                                  <div className="flex-1">
-                                    <h4 className="text-sm font-medium text-gray-900           line-clamp-1">
-                                      {product.name}
-                                    </h4>
-                                    <p className="text-sm text-pink-600           font-semibold">₹{product.price?.toLocaleString          ('en-IN')}</p>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-          
-                          {activeSearchTab === 'categories' && categoryResults.          length > 0 && (
-                            <div>
-                              {categoryResults.map((category) => (
-                                <div
-                                  key={category._id}
-                                  onClick={() => handleCategoryClick(category)}
-                                  className="flex items-center p-3 hover:bg-gray-50           cursor-pointer border-b border-gray-100"
-                                >
-                                  <div className="w-12 h-12 bg-pink-100 rounded-md           mr-3 flex items-center justify-center">
-                                    <svg className="w-6 h-6 text-pink-600"           fill="none" stroke="currentColor" viewBox="0 0           24 24">
-                                      <path strokeLinecap="round"           strokeLinejoin="round" strokeWidth={2} d="M19           11H5m14-4l-3 3.5L16 11m3-4l-3 3.5L16 11" />
-                                    </svg>
-                                  </div>
-                                  <div className="flex-1">
-                                    <h4 className="text-sm font-medium           text-gray-900">
-                                      {category.name}
-                                    </h4>
-                                    {category.description && (
-                                      <p className="text-xs text-gray-600           line-clamp-1">
-                                        {category.description}
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-          
-                          {activeSearchTab === 'subcategories' && subcategoryResults.          length > 0 && (
-                            <div>
-                              {subcategoryResults.map((subcategory) => {
-                                const parentCategory = categories.find(cat => 
-                                  cat._id === subcategory.category || cat._id ===           subcategory.category?._id
-                                );
-                                
-                                return (
-                                  <div
-                                    key={subcategory._id}
-                                    onClick={() => handleSubcategoryClick          (subcategory, parentCategory)}
-                                    className="flex items-center p-3           hover:bg-gray-50 cursor-pointer border-b           border-gray-100"
-                                  >
-                                    <div className="w-12 h-12 bg-purple-100           rounded-md mr-3 flex items-center           justify-center">
-                                      <svg className="w-6 h-6 text-purple-600"           fill="none" stroke="currentColor" viewBox="0 0           24 24">
-                                        <path strokeLinecap="round"           strokeLinejoin="round" strokeWidth={2} d="M7           7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2           2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.          994 1.994 0 013 12V7a4 4 0 014-4z" />
-                                      </svg>
-                                    </div>
-                                    <div className="flex-1">
-                                      <h4 className="text-sm font-medium           text-gray-900">
-                                        {subcategory.name}
-                                      </h4>
-                                      {parentCategory && (
-                                        <p className="text-xs text-gray-500">
-                                          in {parentCategory.name}
-                                        </p>
-                                      )}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-          
-                        <div className="p-3 border-t border-gray-200">
-                          <button
-                            onClick={handleViewAllResults}
-                            className="w-full text-center text-sm font-medium           text-pink-600 hover:text-pink-800"
-                          >
-                            View all results for "{searchQuery}"
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="p-4 text-center text-gray-500">
-                        <svg className="w-12 h-12 mx-auto mb-2 text-gray-300"           fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round"           strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0           0114 0z" />
-                        </svg>
-                        <p>No results found for "{searchQuery}"</p>
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
-          
+
               {/* First 2 Categories */}
               {categoriesWithSubcategories.slice(0, 2).map((category) => (
                 <div
@@ -532,7 +493,7 @@ const Navbar = () => {
                 >
                   <Link
                     to={getCategoryPath(category)}
-                    className={`text-base font-medium transition-colors           hover:text-pink-600 ${
+                    className={`text-base font-medium transition-colors hover:text-pink-600 ${
                       isActivePage(getCategoryPath(category))
                         ? "text-pink-600"
                         : "text-gray-700"
@@ -540,13 +501,13 @@ const Navbar = () => {
                   >
                     {category.name}
                   </Link>
-          
+
                   {/* Subcategories Dropdown */}
-                  {category.subcategories && category.subcategories.length > 0 &&           hoveredCategory === category._id && (
-                    <div className="absolute top-full left-0 mt-0.5 bg-white border           border-gray-200 rounded-md shadow-xl z-50 min-w-48           animate-slideDown">
+                  {category.subcategories && category.subcategories.length > 0 && hoveredCategory === category._id && (
+                    <div className="absolute top-full left-0 mt-0.5 bg-white border border-gray-200 rounded-md shadow-xl z-50 min-w-48 animate-slideDown">
                       <Link
                         to={getCategoryPath(category)}
-                        className="block px-4 py-3 text-sm text-gray-700           hover:bg-pink-50 hover:text-pink-600 transition-colors           border-b border-gray-100 font-medium"
+                        className="block px-4 py-3 text-sm text-gray-700 hover:bg-pink-50 hover:text-pink-600 transition-colors border-b border-gray-100 font-medium"
                       >
                         All {category.name}
                       </Link>
@@ -554,7 +515,7 @@ const Navbar = () => {
                         <Link
                           key={subcategory._id}
                           to={getSubcategoryPath(category, subcategory)}
-                          className="block px-4 py-3 text-sm text-gray-700           hover:bg-pink-50 hover:text-pink-600 transition-colors"
+                          className="block px-4 py-3 text-sm text-gray-700 hover:bg-pink-50 hover:text-pink-600 transition-colors"
                         >
                           {subcategory.name}
                         </Link>
@@ -564,12 +525,12 @@ const Navbar = () => {
                 </div>
               ))}
             </div>
-          
+
             {/* Center Spacer for logo */}
             <div className="w-32"></div>
-          
+
             {/* Right Side: Last 2 Categories */}
-            <div className="flex items-center space-x-8 pr-56">
+            <div className="flex items-center space-x-8 pr-90">
               {categoriesWithSubcategories.slice(2, 4).map((category) => (
                 <div
                   key={category._id}
@@ -579,7 +540,7 @@ const Navbar = () => {
                 >
                   <Link
                     to={getCategoryPath(category)}
-                    className={`text-base font-medium transition-colors           hover:text-pink-600 ${
+                    className={`text-base font-medium transition-colors hover:text-pink-600 ${
                       isActivePage(getCategoryPath(category))
                         ? "text-pink-600"
                         : "text-gray-700"
@@ -587,13 +548,13 @@ const Navbar = () => {
                   >
                     {category.name}
                   </Link>
-          
+
                   {/* Subcategories Dropdown */}
-                  {category.subcategories && category.subcategories.length > 0 &&           hoveredCategory === category._id && (
-                    <div className="absolute top-full left-0 mt-0.5 bg-white border           border-gray-200 rounded-md shadow-xl z-50 min-w-48           animate-slideDown">
+                  {category.subcategories && category.subcategories.length > 0 && hoveredCategory === category._id && (
+                    <div className="absolute top-full left-0 mt-0.5 bg-white border border-gray-200 rounded-md shadow-xl z-50 min-w-48 animate-slideDown">
                       <Link
                         to={getCategoryPath(category)}
-                        className="block px-4 py-3 text-sm text-gray-700           hover:bg-pink-50 hover:text-pink-600 transition-colors           border-b border-gray-100 font-medium"
+                        className="block px-4 py-3 text-sm text-gray-700 hover:bg-pink-50 hover:text-pink-600 transition-colors border-b border-gray-100 font-medium"
                       >
                         All {category.name}
                       </Link>
@@ -601,7 +562,7 @@ const Navbar = () => {
                         <Link
                           key={subcategory._id}
                           to={getSubcategoryPath(category, subcategory)}
-                          className="block px-4 py-3 text-sm text-gray-700           hover:bg-pink-50 hover:text-pink-600 transition-colors"
+                          className="block px-4 py-3 text-sm text-gray-700 hover:bg-pink-50 hover:text-pink-600 transition-colors"
                         >
                           {subcategory.name}
                         </Link>
@@ -614,7 +575,6 @@ const Navbar = () => {
           </div>
         </div>
       </div>
-
       {/* Mobile Navbar */}
       <div className="lg:hidden bg-white border-b border-gray-200 shadow-sm relative">
         <div className="w-full px-4 sm:px-6 py-4">
@@ -717,7 +677,7 @@ const Navbar = () => {
           </div>
 
           {/* Mobile Search */}
-          <div className="p-4 border-b border-gray-200">
+          <div className="p-4 border-b border-gray-200 relative " ref={searchRef}>
             <form onSubmit={handleSearch} className="relative">
               <div className="flex items-center bg-gray-50 border border-gray-300 rounded-md px-4 py-3 hover:border-pink-300 focus-within:border-pink-500 focus-within:ring-2 focus-within:ring-pink-200">
                 <svg className="w-5 h-5 text-pink-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -743,6 +703,9 @@ const Navbar = () => {
                 )}
               </div>
             </form>
+            {isSearchDropdownOpen && searchQuery.length > 2 && (
+              <SearchResultsDropdown />
+              )}
           </div>
 
           {/* Menu Items */}

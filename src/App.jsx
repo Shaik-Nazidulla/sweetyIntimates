@@ -17,6 +17,7 @@ import OrderSuccess from "./pages/OrderSuccess";
 import Blogs from "./pages/Blogs";
 
 // Components
+import ScrollToTop from './components/ScrollToTop';
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import Checkout from "./components/Checkout";
@@ -34,8 +35,8 @@ function App() {
           <Router>
             <div className="font-sans">
               {/* Global Layout Components */}
+              <ScrollToTop />
               <Navbar />
-
               <Routes>
                 {/* Home */}
                 <Route path="/" element={<Home />} />

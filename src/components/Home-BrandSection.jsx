@@ -1,33 +1,65 @@
-import React, { useEffect, useRef } from 'react';
+// sweetyintimate/src/components/Home-BrandSection.jsx
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
 import { gsap } from 'gsap';
+import { getAllSubcategories } from '../Redux/slices/subcategorySlice';
+import { getCategories } from '../Redux/slices/categorySlice';
 
 import prd3 from "../assets/products/prd3.jpg";
-import prd12 from "../assets/products/prd12.png";
+import prd12 from "../assets/products/prd12.jpg";
 
 const LingerieHeroSection = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const categoryStripRef = useRef(null);
   const leftSectionRef = useRef(null);
   const rightSectionRef = useRef(null);
   const readMoreBtnRef = useRef(null);
   const shopNowBtnRef = useRef(null);
 
-  const categories = [
-    'SWIM WEAR',
-    'SPORTS BRA',
-    'TIGHTS',
-    'BRA SET',
-    'LINGERIE',
-    'SLEEPWEAR',
-    'ACTIVEWEAR',
-    'SHAPEWEAR'
-  ];
+  // Redux state
+  const { subcategories, loading: subcategoriesLoading } = useSelector(state => state.subcategories);
+  const { categories } = useSelector(state => state.categories);
+
+  // Fetch subcategories and categories on mount
+  useEffect(() => {
+    if (subcategories.length === 0) {
+      dispatch(getAllSubcategories());
+    }
+    if (categories.length === 0) {
+      dispatch(getCategories());
+    }
+  }, [dispatch, subcategories.length, categories.length]);
+
+  // Helper function to get category by subcategory
+  const getCategoryForSubcategory = (subcategory) => {
+    return categories.find(cat => 
+      cat._id === subcategory.category || cat._id === subcategory.category?._id
+    );
+  };
+
+  // Helper function to navigate to subcategory
+  const handleSubcategoryClick = (subcategory) => {
+    const category = getCategoryForSubcategory(subcategory);
+    
+    if (category) {
+      const categorySlug = category.name.toLowerCase().replace(/\s+/g, '-');
+      const subcategorySlug = subcategory.name.toLowerCase().replace(/\s+/g, '-');
+      navigate(`/products/${categorySlug}/${subcategorySlug}`);
+    }
+  };
+
+  // Handle Shop Now button click - navigate to all products
+  const handleShopNow = () => {
+    navigate('/products/all');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   useEffect(() => {
     // Category strip scroll animation
     const categoryStrip = categoryStripRef.current;
-    if (categoryStrip) {
+    if (categoryStrip && subcategories.length > 0) {
       gsap.to(categoryStrip, {
         x: -200,
         duration: 20,
@@ -39,14 +71,6 @@ const LingerieHeroSection = () => {
     // Hover animations for buttons
     const readMoreBtn = readMoreBtnRef.current;
     const shopNowBtn = shopNowBtnRef.current;
-
-    const handleReadMore = () => {
-  gsap.to(readMoreBtnRef.current, {
-    scale: 0.95,
-    duration: 0.1,
-    onComplete: () => navigate('/blogs')
-  });
-};
 
     if (readMoreBtn) {
       readMoreBtn.addEventListener('mouseenter', () => {
@@ -108,26 +132,43 @@ const LingerieHeroSection = () => {
         shopNowBtn.removeEventListener('mouseleave', () => {});
       }
     };
-  }, []);
+  }, [subcategories.length]);
+
+  // Create tripled array for infinite scroll effect
+  const displaySubcategories = subcategories.length > 0 
+    ? [...subcategories, ...subcategories, ...subcategories]
+    : [];
 
   return (
     <div className="w-full bg-gray-50">
       {/* Category Strip */}
       <div className="w-full bg-gray-700 text-white overflow-hidden py-2 sm:py-3 md:py-4">
-        <div 
-          ref={categoryStripRef}
-          className="flex whitespace-nowrap gap-4 sm:gap-6 md:gap-8 lg:gap-12 xl:gap-16"
-          style={{ width: 'max-content' }}
-        >
-          {[...categories, ...categories, ...categories].map((category, index) => (
-            <button 
-              key={index}
-              className="text-xs sm:text-sm md:text-base lg:text-lg font-medium hover:text-pink-400 transition-colors duration-300 cursor-pointer flex-shrink-0"
-            >
-              {category}
-            </button>
-          ))}
-        </div>
+        {subcategoriesLoading ? (
+          <div className="flex justify-center items-center py-2">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+            <span className="ml-2 text-sm">Loading...</span>
+          </div>
+        ) : displaySubcategories.length > 0 ? (
+          <div 
+            ref={categoryStripRef}
+            className="flex whitespace-nowrap gap-4 sm:gap-6 md:gap-8 lg:gap-12 xl:gap-16"
+            style={{ width: 'max-content' }}
+          >
+            {displaySubcategories.map((subcategory, index) => (
+              <button 
+                key={`${subcategory._id}-${index}`}
+                onClick={() => handleSubcategoryClick(subcategory)}
+                className="text-xs sm:text-sm md:text-base lg:text-lg font-medium hover:text-pink-400 transition-colors duration-300 cursor-pointer flex-shrink-0 uppercase"
+              >
+                {subcategory.name}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="flex justify-center items-center py-2">
+            <span className="text-sm">No subcategories available</span>
+          </div>
+        )}
       </div>
 
       {/* Main Content Section */}
@@ -146,7 +187,7 @@ const LingerieHeroSection = () => {
               alt="Lingerie Background"
               className="w-full h-full object-cover object-center"
             />
-            <div className="absolute inset-0  bg-opacity-20 md:bg-transparent"></div>
+            <div className="absolute inset-0 bg-opacity-20 md:bg-transparent"></div>
           </div>
 
           {/* Content */}
@@ -169,7 +210,7 @@ const LingerieHeroSection = () => {
             {/* Read More Button */}
             <button 
               ref={readMoreBtnRef}
-              onClick={() => navigate('/blogs')}  // Add this line
+              onClick={() => navigate('/blogs')}
               className="border-2 border-gray-400 bg-transparent text-gray-700 
                          px-3 py-2 sm:px-4 sm:py-2 md:px-6 md:py-3 lg:px-8 lg:py-4 xl:px-10 xl:py-4
                          text-xs sm:text-sm md:text-base font-medium 
@@ -195,7 +236,7 @@ const LingerieHeroSection = () => {
               alt="Lingerie Background"
               className="w-full h-full object-cover object-center"
             />
-            <div className="absolute inset-0  bg-opacity-40 md:bg-opacity-60"></div>
+            <div className="absolute inset-0 bg-opacity-40 md:bg-opacity-60"></div>
           </div>
 
           {/* Content */}
@@ -209,9 +250,11 @@ const LingerieHeroSection = () => {
             
             <button 
               ref={shopNowBtnRef}
+              onClick={handleShopNow}
               className="w-full px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 lg:px-8 lg:py-4
                          text-xs sm:text-sm md:text-base font-bold text-white 
-                         transition-all duration-300 min-h-[40px] sm:min-h-[44px] md:min-h-[48px]"
+                         transition-all duration-300 min-h-[40px] sm:min-h-[44px] md:min-h-[48px]
+                         cursor-pointer"
               style={{ backgroundColor: 'rgba(237, 29, 121, 1)' }}
             >
               SHOP NOW
