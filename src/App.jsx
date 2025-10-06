@@ -15,6 +15,10 @@ import UserProfile from "./pages/UserProfile";
 import AboutUs from "./pages/AboutUs";
 import OrderSuccess from "./pages/OrderSuccess";
 import Blogs from "./pages/Blogs";
+import ContactUs from "./pages/ContactUs";
+import SweetyFAQ from "./pages/FAQ";
+import ReturnRefundPolicy from "./pages/ReturnandRefundPolicy";
+import ShippingPolicy from "./pages/ShippingPolicy";
 
 // Components
 import ScrollToTop from './components/ScrollToTop';
@@ -43,6 +47,10 @@ function App() {
 
                 {/* About Us - Add this route */}
                 <Route path="/about" element={<AboutUs />} />
+                <Route path="/faq" element={<SweetyFAQ />} />
+                <Route path="/contact" element={<ContactUs />} />
+                <Route path="/return-refund-policy" element={<ReturnRefundPolicy />} />
+                <Route path="/shipping-policy" element={<ShippingPolicy />} />
 
                 {/* Dynamic product routes */}
                 <Route path="/products" element={<Products />} />

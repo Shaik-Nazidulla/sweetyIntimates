@@ -110,9 +110,6 @@ const WishlistItem = ({ item, removeFromWishlist, addToCart, moveToCart, renderS
         >
           {item.brand || item.name}
         </div>
-        <div className="text-gray-600 text-xs sm:text-sm mb-2 leading-relaxed">
-          {item.description}
-        </div>
         
         {/* Price Section for Mobile */}
         <div className="flex items-center gap-2 mb-3">
@@ -179,9 +176,6 @@ const WishlistItem = ({ item, removeFromWishlist, addToCart, moveToCart, renderS
             onClick={goToDetail}
           >
             {item.brand || item.name}
-          </div>
-          <div className="text-gray-600 text-xs sm:text-sm mb-2 leading-relaxed">
-            {item.description}
           </div>
           {/* Price Section */}
           <div className="flex items-center gap-2 mb-3">
@@ -311,9 +305,6 @@ const RecommendationItem = ({ item, addToCart, addToWishlist, renderStars }) => 
           <span className="text-sm font-semibold text-gray-800">
             ₹{item.price.toLocaleString()}
           </span>
-        </div>
-        <div className="text-gray-600 text-xs mb-2 leading-tight line-clamp-2">
-          {item.description}
         </div>
         <div className="flex gap-2">
           <button

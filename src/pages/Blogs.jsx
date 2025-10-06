@@ -40,7 +40,7 @@ const Blogs = () => {
     return (
       <div className="w-full min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50 flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
-          <div className="w-16 h-16 border-4 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
+          <div className="w-16 h-16 border-b-2  border-t-transparent  animate-spin rounded-full   border-white"></div>
           <p className="text-pink-600 text-lg font-semibold">Loading articles...</p>
         </div>
       </div>
@@ -72,16 +72,13 @@ const Blogs = () => {
       <section className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50 py-20 px-4 md:px-8 lg:px-16">
         {/* Header */}
         <div className="max-w-7xl mx-auto text-center mb-16">
-          <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent mb-4 animate-fadeIn">
+          <h1 className="text-5xl md:text-6xl font-bold  bg-clip-text text-pink-400 mb-4 animate-fadeIn" style={{ fontFamily: "Montaga, serif" }}>
             Our Blog
           </h1>
-          <p className="text-gray-600 text-lg md:text-xl max-w-2xl mx-auto">
-            Discover insights, tips, and stories from Sweety Intimate
-          </p>
         </div>
 
         {/* Blog Grid */}
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-8xl mx-auto">
           {blogs.length === 0 ? (
             <div className="text-center py-20">
               <p className="text-gray-500 text-lg">No articles available at the moment.</p>
@@ -182,7 +179,7 @@ const Blogs = () => {
               </div>
 
               {/* Right: Content */}
-              <div className="p-8 lg:p-12 overflow-y-auto bg-white">
+              <div className="p-8 lg:p- overflow-y-auto bg-white">
                 {/* Date */}
                 <div className="flex items-center text-pink-600 text-sm font-medium mb-6">
                   <Calendar className="w-4 h-4 mr-2" />
