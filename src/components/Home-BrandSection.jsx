@@ -6,9 +6,6 @@ import { gsap } from 'gsap';
 import { getAllSubcategories } from '../Redux/slices/subcategorySlice';
 import { getCategories } from '../Redux/slices/categorySlice';
 
-import prd3 from "../assets/products/prd3.jpg";
-import prd12 from "../assets/products/prd12.jpg";
-
 const LingerieHeroSection = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -183,7 +180,7 @@ const LingerieHeroSection = () => {
           {/* Background Image */}
           <div className="absolute inset-0">
             <img 
-              src={prd3}
+              src="https://res.cloudinary.com/dhezrgjf6/image/upload/v1759750904/prd3_q8a5wg.jpg"
               alt="Lingerie Background"
               className="w-full h-full object-cover object-center"
             />
@@ -232,7 +229,7 @@ const LingerieHeroSection = () => {
           {/* Background Image */}
           <div className="absolute inset-0">
             <img 
-              src={prd12}
+              src="https://res.cloudinary.com/dhezrgjf6/image/upload/v1759750953/prd12_ztlpkp.jpg"
               alt="Lingerie Background"
               className="w-full h-full object-cover object-center"
             />

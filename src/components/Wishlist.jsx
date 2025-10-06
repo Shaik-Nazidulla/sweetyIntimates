@@ -3,7 +3,7 @@ import { useWishlist } from "./WishlistContext";
 import { useCart } from "../hooks/useCart";
 import infoproducts from "./ProductsInfo";
 import { useNavigate } from "react-router-dom";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 
 // ⭐ Reusable Wishlist Item Component
@@ -43,8 +43,8 @@ const WishlistItem = ({ item, removeFromWishlist, addToCart, moveToCart, renderS
   }, []);
 
   const goToDetail = () => {
-    navigate(`/product/${item.id || item._id}`);
-  };
+  navigate(`/product/${item._id || item.id}`);
+};
 
   const handleAddToCart = async () => {
     const result = await addToCart(item);
@@ -275,8 +275,8 @@ const RecommendationItem = ({ item, addToCart, addToWishlist, renderStars }) => 
   }, []);
 
   const goToDetail = () => {
-    navigate(`/product/${item.id}`);
-  };
+  navigate(`/product/${item._id || item.id}`);
+};
 
   return (
     <div 
@@ -284,11 +284,11 @@ const RecommendationItem = ({ item, addToCart, addToWishlist, renderStars }) => 
       className="flex gap-3 py-3 border-b border-gray-200 last:border-b-0 transition-all duration-300"
     >
       <img
-        src={item.images ? item.images[0] : item.image}
-        alt={item.description}
-        className="w-16 h-16 sm:w-20 sm:h-20 rounded-md object-cover flex-shrink-0 cursor-pointer"
-        onClick={goToDetail}
-      />
+  src={item.colors?.[0]?.images?.[0] || item.images?.[0] || item.image || '/placeholder.png'}
+  alt={item.description || item.name}
+  className="w-16 h-16 sm:w-20 sm:h-20 rounded-md object-cover flex-shrink-0 cursor-pointer"
+  onClick={goToDetail}
+/>
       <div className="flex-1">
         <div
           onClick={goToDetail}
@@ -307,12 +307,6 @@ const RecommendationItem = ({ item, addToCart, addToWishlist, renderStars }) => 
           </span>
         </div>
         <div className="flex gap-2">
-          <button
-            className="bg-pink-600 text-white py-1 px-3 rounded-2xl text-xs font-medium hover:bg-pink-700 transition-colors"
-            onClick={() => addToCart(item)}
-          >
-            Add to Cart
-          </button>
           <button
             className="border border-pink-600 text-pink-600 py-1 px-3 rounded-2xl text-xs font-medium hover:bg-pink-50 transition-colors"
             onClick={() => addToWishlist(item)}
@@ -343,9 +337,81 @@ const Wishlist = () => {
   const containerRef = useRef(null);
   
   // Recommendations based on wishlist or popular products
-  const recommendations = infoproducts
-    .filter(product => !wishlistItems.find(item => (item.id || item._id) === product.id))
-    .slice(0, 6);
+  const [recommendations, setRecommendations] = useState([]);
+const [loadingRecommendations, setLoadingRecommendations] = useState(true);
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+
+useEffect(() => {
+  const fetchRecommendations = async () => {
+    try {
+      setLoadingRecommendations(true);
+      
+      // Fetch categories
+      const categoriesRes = await fetch(`${API_BASE_URL}/category`);
+      const categoriesData = await categoriesRes.json();
+      const categories = categoriesData.data || [];
+
+      const products = [];
+
+      for (const category of categories) {
+        // Fetch subcategories
+        const subcategoriesRes = await fetch(`${API_BASE_URL}/sub-category/category/${category._id}`);
+        const subcategoriesData = await subcategoriesRes.json();
+        const subcategories = subcategoriesData.data || [];
+
+        if (subcategories.length > 0) {
+          // If subcategories exist, fetch one product from each
+          for (const subcategory of subcategories) {
+            const productsRes = await fetch(
+              `${API_BASE_URL}/product/subcategory/${subcategory._id}?page=1&limit=1&isActive=true`
+            );
+            const productsData = await productsRes.json();
+            const latestProduct = productsData.data?.products?.[0];
+            
+            if (latestProduct) {
+              products.push({
+                ...latestProduct,
+                categoryName: category.name,
+                subcategoryName: subcategory.name
+              });
+            }
+          }
+        } else {
+          // If no subcategories, fetch directly from category
+          const productsRes = await fetch(
+            `${API_BASE_URL}/product/category/${category._id}?page=1&limit=1&isActive=true`
+          );
+          const productsData = await productsRes.json();
+          const latestProduct = productsData.data?.products?.[0];
+          
+          if (latestProduct) {
+            products.push({
+              ...latestProduct,
+              categoryName: category.name,
+              subcategoryName: null
+            });
+          }
+        }
+      }
+
+      // Filter out products already in wishlist and limit to 6
+      const filteredProducts = products
+        .filter(product => !wishlistItems.find(item => (item.id || item._id) === product._id))
+        .slice(0, 6);
+
+      setRecommendations(filteredProducts);
+    } catch (err) {
+      console.error('Error fetching recommendations:', err);
+      setRecommendations([]);
+    } finally {
+      setLoadingRecommendations(false);
+    }
+  };
+
+  fetchRecommendations();
+}, [wishlistItems, API_BASE_URL]);
+
 
   const renderStars = (rating) => "★".repeat(rating);
   const getTotalItems = () => count || wishlistItems.length;
@@ -494,16 +560,26 @@ const Wishlist = () => {
               You Might Also Like
             </div>
             <div className="px-4 pb-4">
-              {recommendations.map((item) => (
-                <RecommendationItem
-                  key={item.id}
-                  item={item}
-                  addToCart={addItemToCart}
-                  addToWishlist={addToWishlist}
-                  renderStars={renderStars}
-                />
-              ))}
-            </div>
+  {loadingRecommendations ? (
+    <div className="flex justify-center items-center py-10">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
+    </div>
+  ) : recommendations.length > 0 ? (
+    recommendations.map((item) => (
+      <RecommendationItem
+        key={item._id || item.id}
+        item={item}
+        addToCart={addItemToCart}
+        addToWishlist={addToWishlist}
+        renderStars={renderStars}
+      />
+    ))
+  ) : (
+    <div className="text-center py-10 text-gray-500 text-sm">
+      No recommendations available
+    </div>
+  )}
+</div>
           </div>
         </div>
       </div>
@@ -589,16 +665,26 @@ const Wishlist = () => {
                 You Might Also Like
               </div>
               <div className="flex-1 overflow-y-auto px-5 pb-5 hide-scrollbar">
-                {recommendations.map((item) => (
-                  <RecommendationItem
-                    key={item.id}
-                    item={item}
-                    addToCart={addItemToCart}
-                    addToWishlist={addToWishlist}
-                    renderStars={renderStars}
-                  />
-                ))}
-              </div>
+  {loadingRecommendations ? (
+    <div className="flex justify-center items-center py-10">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
+    </div>
+  ) : recommendations.length > 0 ? (
+    recommendations.map((item) => (
+      <RecommendationItem
+        key={item._id || item.id}
+        item={item}
+        addToCart={addItemToCart}
+        addToWishlist={addToWishlist}
+        renderStars={renderStars}
+      />
+    ))
+  ) : (
+    <div className="text-center py-10 text-gray-500">
+      No recommendations available
+    </div>
+  )}
+</div>
             </div>
           </div>
         </div>

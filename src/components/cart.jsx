@@ -6,6 +6,8 @@ import { apiService } from '../services/api';
 import { useNavigate } from "react-router-dom";
 import React, { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
+  
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
 // ⭐ Enhanced Reusable Cart Item Component
 const CartItem = ({ item, updateQuantity, deleteItem, addToWishlist, renderStars }) => {
@@ -13,7 +15,10 @@ const CartItem = ({ item, updateQuantity, deleteItem, addToWishlist, renderStars
   const quantityRef = useRef(null);
   const navigate = useNavigate();
 
+  
+
   useEffect(() => {
+
     const element = itemRef.current;
 
     const handleMouseEnter = () => {
@@ -327,7 +332,6 @@ const DealItem = ({ deal, addToCart, renderStars }) => {
       originalPrice: deal.originalPrice || deal.price * 1.2,
       images: deal.images || [],
       colors: deal.colors || [],
-      description: deal.description || deal.name
     };
     
     // Use default color and size
@@ -357,17 +361,9 @@ const DealItem = ({ deal, addToCart, renderStars }) => {
           {deal.name}
         </div>
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-pink-600 text-xs">{renderStars(deal.rating || 5)}</span>
           <span className="text-pink-600 text-xs font-semibold">-{discount}%</span>
           <span className="text-sm font-semibold text-gray-800">₹{deal.price.toLocaleString()}</span>
         </div>
-        <div className="text-gray-600 text-xs mb-2">{deal.description || deal.name}</div>
-        <button
-          className="add-to-cart-btn bg-pink-600 text-white py-1 px-3 rounded-2xl text-xs font-medium hover:bg-pink-700"
-          onClick={handleAddToCart}
-        >
-          Add to Cart
-        </button>
       </div>
     </div>
   );
@@ -533,29 +529,71 @@ const Cart = () => {
   // Fetch popular deals from API, excluding items already in cart
   useEffect(() => {
     const fetchDeals = async () => {
-      try {
-        setDealsLoading(true);
-        // Fetch more products to have a better pool for randomization
-        const response = await apiService.getAllProducts(1, 20); 
-        
-        if (response && response.products) {
-          // Filter out cart items
-          const cartProductIds = cartItems.map(item => item.product?._id || item.productId);
-          let availableProducts = response.products.filter(
-            product => !cartProductIds.includes(product._id)
+  try {
+    setDealsLoading(true);
+    
+    // Fetch categories
+    const categoriesRes = await fetch(`${API_BASE_URL}/category`);
+    const categoriesData = await categoriesRes.json();
+    const categories = categoriesData.data || [];
+
+    const products = [];
+
+    for (const category of categories) {
+      // Fetch subcategories
+      const subcategoriesRes = await fetch(`${API_BASE_URL}/sub-category/category/${category._id}`);
+      const subcategoriesData = await subcategoriesRes.json();
+      const subcategories = subcategoriesData.data || [];
+
+      if (subcategories.length > 0) {
+        // Fetch one product from each subcategory
+        for (const subcategory of subcategories) {
+          const productsRes = await fetch(
+            `${API_BASE_URL}/product/subcategory/${subcategory._id}?page=1&limit=1&isActive=true`
           );
+          const productsData = await productsRes.json();
+          const latestProduct = productsData.data?.products?.[0];
           
-          // Randomize and pick 6
-          const shuffled = availableProducts.sort(() => Math.random() - 0.5);
-          setDeals(shuffled.slice(0, 6));
+          if (latestProduct) {
+            products.push({
+              ...latestProduct,
+              categoryName: category.name,
+              subcategoryName: subcategory.name
+            });
+          }
         }
-      } catch (error) {
-        console.error('Failed to fetch deals:', error);
-        setDeals([]);
-      } finally {
-        setDealsLoading(false);
+      } else {
+        // No subcategories - fetch directly from category
+        const productsRes = await fetch(
+          `${API_BASE_URL}/product/category/${category._id}?page=1&limit=1&isActive=true`
+        );
+        const productsData = await productsRes.json();
+        const latestProduct = productsData.data?.products?.[0];
+        
+        if (latestProduct) {
+          products.push({
+            ...latestProduct,
+            categoryName: category.name,
+            subcategoryName: null
+          });
+        }
       }
-    };
+    }
+
+    // Filter out cart items and limit to 6
+    const cartProductIds = cartItems.map(item => item.product?._id || item.productId);
+    const filteredProducts = products
+      .filter(product => !cartProductIds.includes(product._id))
+      .slice(0, 6);
+
+    setDeals(filteredProducts);
+  } catch (error) {
+    console.error('Failed to fetch deals:', error);
+    setDeals([]);
+  } finally {
+    setDealsLoading(false);
+  }
+};
   
     // Only fetch if we have cart items loaded
     if (!loading) {

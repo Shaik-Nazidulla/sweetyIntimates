@@ -1,12 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 
 import logo from "/LOGO.png"
-import prd5 from "../assets/products/prd5.jpg"
-import prd6 from "../assets/products/prd6.jpg"
-import prd7 from "../assets/products/prd7.jpg"
-import prd8 from "../assets/products/prd8.jpg"
-import prd9 from "../assets/products/prd9.jpg"
-import prd10 from "../assets/products/prd10.jpg"
 
 const SweetyIntimatesLanding = () => {
   const heroRef = useRef(null);
