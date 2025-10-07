@@ -369,10 +369,10 @@ const Navbar = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden animate-fadeIn" />
       )}
 
-      {/* Desktop Navbar - Two Row Layout with Wave Background */}
-      <div className="hidden lg:block relative " style={{ height: '138px', Width: 'full', margin: '0 auto' }}>
+      {/* Desktop Navbar - Individual Grid Layout with Wave Background */}
+      <div className="hidden lg:block relative" style={{ height: '130px', width: 'full', margin: '0 auto' }}>
         {/* Wavy PNG Background */}
-        <div className="absolute inset-0 overflow-hidden ">
+        <div className="absolute inset-0 overflow-hidden">
           <img 
             src={WavyBg} 
             alt="" 
@@ -380,84 +380,17 @@ const Navbar = () => {
             style={{ objectFit: 'cover' }}
           />
         </div>
-
-        {/* Content Container */}
-        <div className="relative z-10 h-full pt-7">
-          {/* Row 1: Icons on the right */}
-          <div className="flex justify-end items-center px-8 pt-4 pb-2 pr-50">
-            <div className="flex items-center space-x-30 ">
-              {/* Profile/Sign In */}
-              {isAuthenticated ? (
-                <button 
-                  onClick={() => navigate('/profile')}
-                  className="flex flex-col items-center group"
-                >
-                  <svg className="w-6 h-6 text-pink-500 group-hover:text-pink-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </button>
-              ) : (
-                <button 
-                  onClick={openSignIn}
-                  className="flex flex-col items-center group"
-                >
-                  <svg className="w-6 h-6 text-pink-500 group-hover:text-pink-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </button>
-              )}
-
-              {/* Wishlist */}
-              <button 
-                onClick={() => navigate("/Wishlist")}
-                className="flex flex-col items-center group relative"
-              >
-                <svg className="w-6 h-6 text-pink-500 group-hover:text-pink-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                </svg>
-                {wishlistCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-pink-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center text-[10px]">
-                    {wishlistCount}
-                  </span>
-                )}
-              </button>
-
-              {/* Cart */}
-              <button
-                onClick={() => navigate("/cart")}
-                className="flex flex-col items-center group relative"
-              >
-                <svg className="w-6 h-6 text-pink-500 group-hover:text-pink-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                </svg>
-                {cartItems.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-pink-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center text-[10px]">
-                    {cartItems.length}
-                  </span>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Logo - Centered and Spanning */}
-          <div className="absolute left-1/2 top-0 transform -translate-x-1/2 z-20 pt-2">
-            <Link
-              to="/"
-              className="block hover:scale-105 transition-transform duration-200"
-            >
-              <img src={Logo} alt="Sweety Intimate" className="h-30 w-auto" />
-            </Link>
-          </div>
-
-          {/* Row 2: Search on left, Categories split around logo */}
-          <div className="flex items-center justify-between px-20 pb-4 pt-2">
-            {/* Left Side: Search Bar + First 2 Categories */}
-            <div className="flex items-center space-x-8">
-              {/* Search Bar */}
-              <div className="w-64 relative mr-30" ref={searchRef}>
+      
+        {/* Content Container - Grid Layout with custom column sizes */}
+        <div className="relative z-10 h-full">
+          <div className="grid grid-cols-12 gap-2 h-full items-center px-6 pl-31">
+            
+            {/* Grid 1: Search Bar - 2 columns */}
+            <div className="col-span-2 flex items-center justify-start">
+              <div className="w-full max-w-[200px] relative" ref={searchRef}>
                 <form onSubmit={handleSearch} className="relative">
-                  <div className="flex items-center bg-white border-2 border-pink-400 rounded-sm px-4 py-2 focus-within:border-pink-500 focus-within:ring-2 focus-within:ring-pink-200  ">
-                    <svg className="w-5 h-5 text-pink-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="flex items-center bg-white border-2 border-pink-400 rounded-sm px-3 py-2 focus-within:border-pink-500 focus-within:ring-2 focus-within:ring-pink-200">
+                    <svg className="w-5 h-5 text-pink-500 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                     <input
@@ -466,13 +399,13 @@ const Navbar = () => {
                       value={searchQuery}
                       onChange={handleInputChange}
                       onFocus={() => searchQuery.length > 2 && setIsSearchDropdownOpen(true)}
-                      className="flex-1 text-sm focus:outline-none bg-transparent placeholder-gray-400"
+                      className="flex-1 text-sm focus:outline-none bg-transparent placeholder-gray-400 min-w-0"
                     />
                     {searchQuery && (
                       <button
                         type="button"
                         onClick={clearSearch}
-                        className="ml-2 text-gray-400 hover:text-pink-500 transition-colors"
+                        className="ml-2 text-gray-400 hover:text-pink-500 transition-colors flex-shrink-0"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -481,87 +414,45 @@ const Navbar = () => {
                     )}
                   </div>
                 </form>
+                {/* Search Dropdown */}
+                {isSearchDropdownOpen && searchQuery.length > 2 && <SearchResultsDropdown />}
               </div>
-
-              {/* First 2 Categories */}
-              {categoriesWithSubcategories.slice(0, 2).map((category) => (
-                <div
-                  key={category._id}
-                  className="relative"
-                  onMouseEnter={() => setHoveredCategory(category._id)}
-                  onMouseLeave={() => setHoveredCategory(null)}
-                >
-                  <Link
-                    to={getCategoryPath(category)}
-                    className={`text-base font-medium transition-colors hover:text-pink-600 ${
-                      isActivePage(getCategoryPath(category))
-                        ? "text-pink-600"
-                        : "text-gray-700"
-                    }`}
-                  >
-                    {category.name}
-                  </Link>
-
-                  {/* Subcategories Dropdown */}
-                  {category.subcategories && category.subcategories.length > 0 && hoveredCategory === category._id && (
-                    <div className="absolute top-full left-0 mt-0.5 bg-white border border-gray-200 rounded-md shadow-xl z-50 min-w-48 animate-slideDown">
-                      <Link
-                        to={getCategoryPath(category)}
-                        className="block px-4 py-3 text-sm text-gray-700 hover:bg-pink-50 hover:text-pink-600 transition-colors border-b border-gray-100 font-medium"
-                      >
-                        All {category.name}
-                      </Link>
-                      {category.subcategories.map((subcategory) => (
-                        <Link
-                          key={subcategory._id}
-                          to={getSubcategoryPath(category, subcategory)}
-                          className="block px-4 py-3 text-sm text-gray-700 hover:bg-pink-50 hover:text-pink-600 transition-colors"
-                        >
-                          {subcategory.name}
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
             </div>
-
-            {/* Center Spacer for logo */}
-            <div className="w-32"></div>
-
-            {/* Right Side: Last 2 Categories */}
-            <div className="flex items-center space-x-8 pr-90">
-              {categoriesWithSubcategories.slice(2, 4).map((category) => (
+      
+            {/* Grid 2: First Category (Bras) - 1 column */}
+            <div className="col-span-1 flex items-center justify-center">
+              {categoriesWithSubcategories[0] && (
                 <div
-                  key={category._id}
                   className="relative"
-                  onMouseEnter={() => setHoveredCategory(category._id)}
+                  onMouseEnter={() => setHoveredCategory(categoriesWithSubcategories[0]._id)}
                   onMouseLeave={() => setHoveredCategory(null)}
                 >
                   <Link
-                    to={getCategoryPath(category)}
-                    className={`text-base font-medium transition-colors hover:text-pink-600 ${
-                      isActivePage(getCategoryPath(category))
+                    to={getCategoryPath(categoriesWithSubcategories[0])}
+                    className={`text-base font-medium transition-colors hover:text-pink-600 whitespace-nowrap ${
+                      isActivePage(getCategoryPath(categoriesWithSubcategories[0]))
                         ? "text-pink-600"
                         : "text-gray-700"
                     }`}
                   >
-                    {category.name}
+                    {categoriesWithSubcategories[0].name}
                   </Link>
-
+      
                   {/* Subcategories Dropdown */}
-                  {category.subcategories && category.subcategories.length > 0 && hoveredCategory === category._id && (
+                  {categoriesWithSubcategories[0].subcategories && 
+                   categoriesWithSubcategories[0].subcategories.length > 0 && 
+                   hoveredCategory === categoriesWithSubcategories[0]._id && (
                     <div className="absolute top-full left-0 mt-0.5 bg-white border border-gray-200 rounded-md shadow-xl z-50 min-w-48 animate-slideDown">
                       <Link
-                        to={getCategoryPath(category)}
+                        to={getCategoryPath(categoriesWithSubcategories[0])}
                         className="block px-4 py-3 text-sm text-gray-700 hover:bg-pink-50 hover:text-pink-600 transition-colors border-b border-gray-100 font-medium"
                       >
-                        All {category.name}
+                        All {categoriesWithSubcategories[0].name}
                       </Link>
-                      {category.subcategories.map((subcategory) => (
+                      {categoriesWithSubcategories[0].subcategories.map((subcategory) => (
                         <Link
                           key={subcategory._id}
-                          to={getSubcategoryPath(category, subcategory)}
+                          to={getSubcategoryPath(categoriesWithSubcategories[0], subcategory)}
                           className="block px-4 py-3 text-sm text-gray-700 hover:bg-pink-50 hover:text-pink-600 transition-colors"
                         >
                           {subcategory.name}
@@ -570,7 +461,209 @@ const Navbar = () => {
                     </div>
                   )}
                 </div>
-              ))}
+              )}
+            </div>
+      
+            {/* Grid 3: Second Category (Panties) - 1 column */}
+            <div className="col-span-1 flex items-center justify-center">
+              {categoriesWithSubcategories[1] && (
+                <div
+                  className="relative"
+                  onMouseEnter={() => setHoveredCategory(categoriesWithSubcategories[1]._id)}
+                  onMouseLeave={() => setHoveredCategory(null)}
+                >
+                  <Link
+                    to={getCategoryPath(categoriesWithSubcategories[1])}
+                    className={`text-base font-medium transition-colors hover:text-pink-600 whitespace-nowrap ${
+                      isActivePage(getCategoryPath(categoriesWithSubcategories[1]))
+                        ? "text-pink-600"
+                        : "text-gray-700"
+                    }`}
+                  >
+                    {categoriesWithSubcategories[1].name}
+                  </Link>
+      
+                  {/* Subcategories Dropdown */}
+                  {categoriesWithSubcategories[1].subcategories && 
+                   categoriesWithSubcategories[1].subcategories.length > 0 && 
+                   hoveredCategory === categoriesWithSubcategories[1]._id && (
+                    <div className="absolute top-full left-0 mt-0.5 bg-white border border-gray-200 rounded-md shadow-xl z-50 min-w-48 animate-slideDown">
+                      <Link
+                        to={getCategoryPath(categoriesWithSubcategories[1])}
+                        className="block px-4 py-3 text-sm text-gray-700 hover:bg-pink-50 hover:text-pink-600 transition-colors border-b border-gray-100 font-medium"
+                      >
+                        All {categoriesWithSubcategories[1].name}
+                      </Link>
+                      {categoriesWithSubcategories[1].subcategories.map((subcategory) => (
+                        <Link
+                          key={subcategory._id}
+                          to={getSubcategoryPath(categoriesWithSubcategories[1], subcategory)}
+                          className="block px-4 py-3 text-sm text-gray-700 hover:bg-pink-50 hover:text-pink-600 transition-colors"
+                        >
+                          {subcategory.name}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+      
+            {/* Grid 4: Logo - 4 columns (center) */}
+            <div className="col-span-3 flex items-center justify-center">
+              <Link
+                to="/"
+                className="block hover:scale-105 transition-transform duration-200"
+              >
+                <img src={Logo} alt="Sweety Intimate" className="h-30 w-auto" />
+              </Link>
+            </div>
+      
+            {/* Grid 5: Third Category (Camisoles) - 1 column */}
+            <div className="col-span-1 flex items-center justify-center">
+              {categoriesWithSubcategories[2] && (
+                <div
+                  className="relative"
+                  onMouseEnter={() => setHoveredCategory(categoriesWithSubcategories[2]._id)}
+                  onMouseLeave={() => setHoveredCategory(null)}
+                >
+                  <Link
+                    to={getCategoryPath(categoriesWithSubcategories[2])}
+                    className={`text-base font-medium transition-colors hover:text-pink-600 whitespace-nowrap ${
+                      isActivePage(getCategoryPath(categoriesWithSubcategories[2]))
+                        ? "text-pink-600"
+                        : "text-gray-700"
+                    }`}
+                  >
+                    {categoriesWithSubcategories[2].name}
+                  </Link>
+      
+                  {/* Subcategories Dropdown */}
+                  {categoriesWithSubcategories[2].subcategories && 
+                   categoriesWithSubcategories[2].subcategories.length > 0 && 
+                   hoveredCategory === categoriesWithSubcategories[2]._id && (
+                    <div className="absolute top-full left-0 mt-0.5 bg-white border border-gray-200 rounded-md shadow-xl z-50 min-w-48 animate-slideDown">
+                      <Link
+                        to={getCategoryPath(categoriesWithSubcategories[2])}
+                        className="block px-4 py-3 text-sm text-gray-700 hover:bg-pink-50 hover:text-pink-600 transition-colors border-b border-gray-100 font-medium"
+                      >
+                        All {categoriesWithSubcategories[2].name}
+                      </Link>
+                      {categoriesWithSubcategories[2].subcategories.map((subcategory) => (
+                        <Link
+                          key={subcategory._id}
+                          to={getSubcategoryPath(categoriesWithSubcategories[2], subcategory)}
+                          className="block px-4 py-3 text-sm text-gray-700 hover:bg-pink-50 hover:text-pink-600 transition-colors"
+                        >
+                          {subcategory.name}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+      
+            {/* Grid 6: Fourth Category (Shorts) - 1 column */}
+            <div className="col-span-1 flex items-center justify-center">
+              {categoriesWithSubcategories[3] && (
+                <div
+                  className="relative"
+                  onMouseEnter={() => setHoveredCategory(categoriesWithSubcategories[3]._id)}
+                  onMouseLeave={() => setHoveredCategory(null)}
+                >
+                  <Link
+                    to={getCategoryPath(categoriesWithSubcategories[3])}
+                    className={`text-base font-medium transition-colors hover:text-pink-600 whitespace-nowrap ${
+                      isActivePage(getCategoryPath(categoriesWithSubcategories[3]))
+                        ? "text-pink-600"
+                        : "text-gray-700"
+                    }`}
+                  >
+                    {categoriesWithSubcategories[3].name}
+                  </Link>
+      
+                  {/* Subcategories Dropdown */}
+                  {categoriesWithSubcategories[3].subcategories && 
+                   categoriesWithSubcategories[3].subcategories.length > 0 && 
+                   hoveredCategory === categoriesWithSubcategories[3]._id && (
+                    <div className="absolute top-full left-0 mt-0.5 bg-white border border-gray-200 rounded-md shadow-xl z-50 min-w-48 animate-slideDown">
+                      <Link
+                        to={getCategoryPath(categoriesWithSubcategories[3])}
+                        className="block px-4 py-3 text-sm text-gray-700 hover:bg-pink-50 hover:text-pink-600 transition-colors border-b border-gray-100 font-medium"
+                      >
+                        All {categoriesWithSubcategories[3].name}
+                      </Link>
+                      {categoriesWithSubcategories[3].subcategories.map((subcategory) => (
+                        <Link
+                          key={subcategory._id}
+                          to={getSubcategoryPath(categoriesWithSubcategories[3], subcategory)}
+                          className="block px-4 py-3 text-sm text-gray-700 hover:bg-pink-50 hover:text-pink-600 transition-colors"
+                        >
+                          {subcategory.name}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+      
+            {/* Grid 7: Profile Icon - 1 column */}
+            <div className="col-span-1 flex items-center justify-end">
+              {isAuthenticated ? (
+                <button 
+                  onClick={() => navigate('/profile')}
+                  className="flex flex-col items-center group"
+                >
+                  <svg className="w-5 h-5 text-pink-500 group-hover:text-pink-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </button>
+              ) : (
+                <button 
+                  onClick={openSignIn}
+                  className="flex flex-col items-center group"
+                >
+                  <svg className="w-5 h-5 text-pink-500 group-hover:text-pink-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </button>
+              )}
+            </div>
+      
+            {/* Grid 8: Wishlist Icon - 1 column */}
+            <div className="col-span-1 flex items-center justify-center">
+              <button 
+                onClick={() => navigate("/Wishlist")}
+                className="flex flex-col items-center group relative"
+              >
+                <svg className="w-5 h-5 text-pink-500 group-hover:text-pink-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+                {wishlistCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-pink-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center text-[10px]">
+                    {wishlistCount}
+                  </span>
+                )}
+              </button>
+            </div>
+      
+            {/* Grid 9: Cart Icon - 1 column */}
+            <div className="col-span-1 flex items-center justify-start">
+              <button
+                onClick={() => navigate("/cart")}
+                className="flex flex-col items-center group relative"
+              >
+                <svg className="w-5 h-5 text-pink-500 group-hover:text-pink-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                </svg>
+                {cartItems.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-pink-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center text-[10px]">
+                    {cartItems.length}
+                  </span>
+                )}
+              </button>
             </div>
           </div>
         </div>
