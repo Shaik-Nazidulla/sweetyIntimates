@@ -34,7 +34,7 @@ const CircularProductCard = React.memo(({
       }}
       onClick={() => onCardClick(product)}
     >
-      <div className="bg-pink-300 overflow-hidden shadow-md transition-all duration-300 hover:shadow-xl hover:-translate-y-2">
+      <div className="bg-[#f9e2e7] overflow-hidden shadow-md transition-all duration-300 hover:shadow-xl hover:-translate-y-2">
         <div className="p-3 sm:p-4">
           <div className="bg-white p-1 relative overflow-hidden">
             <img
@@ -374,14 +374,14 @@ const FeaturedProducts = () => {
         {/* Navigation Buttons */}
         <button
           onClick={handlePrevious}
-          className="absolute left-0 sm:left-2 top-1/2 -translate-y-1/2 z-20 w-5 lg:w-8 h-12 sm:w-10 sm:h-14 rounded-sm shadow-lg transition-all duration-300 flex items-center justify-center bg-pink-400 hover:bg-pink-500 hover:shadow-xl hover:scale-105"
+          className="absolute left-0 sm:left-2 top-1/2 -translate-y-1/2 z-20 w-5 lg:w-8 h-12 sm:w-10 sm:h-14 rounded-sm shadow-lg transition-all duration-300 flex items-center justify-center bg-[#F9E2E7] hover:bg-pink-500 hover:shadow-xl hover:scale-105"
         >
           <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
         </button>
 
         <button
           onClick={handleNext}
-          className="absolute right-0 sm:right-2 top-1/2 -translate-y-1/2 z-20 w-5 lg:w-8 h-12 sm:w-10 sm:h-14 rounded-sm shadow-lg transition-all duration-300 flex items-center justify-center bg-pink-400 hover:bg-pink-500 hover:shadow-xl hover:scale-105"
+          className="absolute right-0 sm:right-2 top-1/2 -translate-y-1/2 z-20 w-5 lg:w-8 h-12 sm:w-10 sm:h-14 rounded-sm shadow-lg transition-all duration-300 flex items-center justify-center bg-[#F9E2E7] hover:bg-pink-500 hover:shadow-xl hover:scale-105"
         >
           <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
         </button>
@@ -415,7 +415,7 @@ const FeaturedProducts = () => {
       <div className="mt-6 sm:mt-8 w-full max-w-4xl mx-auto px-4">
         <div className="h-1 bg-gray-200 relative overflow-hidden rounded-full">
           <div
-            className="h-full bg-pink-500 absolute top-0 left-0 transition-all duration-500 rounded-full"
+            className="h-full bg-[#F9E2E7] absolute top-0 left-0 transition-all duration-500 rounded-full"
             style={{ width: progressWidth }}
           />
         </div>
