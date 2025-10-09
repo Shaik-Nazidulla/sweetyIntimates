@@ -1,5 +1,5 @@
 // sweetyintimate/src/components/Home-BrandSection.jsx
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { gsap } from 'gsap';

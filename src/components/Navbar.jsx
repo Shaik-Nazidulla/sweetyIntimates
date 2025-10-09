@@ -429,7 +429,7 @@ const Navbar = () => {
                 >
                   <Link
                     to={getCategoryPath(categoriesWithSubcategories[0])}
-                    className={`text-base font-medium transition-colors hover:text-pink-600 whitespace-nowrap ${
+                    className={`text-base font-bold uppercase transition-colors hover:text-pink-600 whitespace-nowrap ${
                       isActivePage(getCategoryPath(categoriesWithSubcategories[0]))
                         ? "text-pink-600"
                         : "text-gray-700"
@@ -474,7 +474,7 @@ const Navbar = () => {
                 >
                   <Link
                     to={getCategoryPath(categoriesWithSubcategories[1])}
-                    className={`text-base font-medium transition-colors hover:text-pink-600 whitespace-nowrap ${
+                    className={`text-base font-bold uppercase transition-colors hover:text-pink-600 whitespace-nowrap ${
                       isActivePage(getCategoryPath(categoriesWithSubcategories[1]))
                         ? "text-pink-600"
                         : "text-gray-700"
@@ -529,7 +529,7 @@ const Navbar = () => {
                 >
                   <Link
                     to={getCategoryPath(categoriesWithSubcategories[2])}
-                    className={`text-base font-medium transition-colors hover:text-pink-600 whitespace-nowrap ${
+                    className={`text-base font-bold uppercase transition-colors hover:text-pink-600 whitespace-nowrap ${
                       isActivePage(getCategoryPath(categoriesWithSubcategories[2]))
                         ? "text-pink-600"
                         : "text-gray-700"
@@ -574,7 +574,7 @@ const Navbar = () => {
                 >
                   <Link
                     to={getCategoryPath(categoriesWithSubcategories[3])}
-                    className={`text-base font-medium transition-colors hover:text-pink-600 whitespace-nowrap ${
+                    className={`text-base font-bold uppercase transition-colors hover:text-pink-600 whitespace-nowrap ${
                       isActivePage(getCategoryPath(categoriesWithSubcategories[3]))
                         ? "text-pink-600"
                         : "text-gray-700"
@@ -669,7 +669,7 @@ const Navbar = () => {
         </div>
       </div>
       {/* Mobile Navbar */}
-      <div className="lg:hidden bg-white border-b border-gray-200 shadow-sm relative">
+      <div className="lg:hidden bg-[#F9E2E7] border-b border-gray-200 shadow-sm relative">
         <div className="w-full px-4 sm:px-6 py-4">
           <div className="flex items-center">
             {/* Mobile Menu Button */}
@@ -875,7 +875,7 @@ const MobileCategoryMenu = ({ category, isActive, onLinkClick, onCategoryClick, 
   const hasSubcategories = category.subcategories && category.subcategories.length > 0;
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+    <div className="bg-[#f9e2e7] rounded-lg shadow-sm border border-gray-100 overflow-hidden">
       <div className="flex items-center">
         <button
           onClick={() => onCategoryClick(category)}
@@ -921,7 +921,7 @@ const MobileCategoryMenu = ({ category, isActive, onLinkClick, onCategoryClick, 
             isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
           }`}
         >
-          <div className="border-t border-gray-100 bg-gradient-to-r from-gray-50 to-pink-50">
+          <div className="border-t border-gray-100 bg-[#f9e2e7]">
             {category.subcategories.map((subcategory) => (
               <button
                 key={subcategory._id}

@@ -25,6 +25,7 @@ import ScrollToTop from './components/ScrollToTop';
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import Checkout from "./components/Checkout";
+import { SmoothCursor } from "./components/SmoothCursor";
 
 // Context Providers
 import { CartProvider } from "./components/CartContext";
@@ -85,6 +86,7 @@ function App() {
 
               {/* Global Footer */}
               <Footer />
+              <SmoothCursor />
             </div>
           </Router>
         </WishlistProvider>
