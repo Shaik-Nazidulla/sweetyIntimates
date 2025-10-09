@@ -336,6 +336,39 @@ const HomeProductDetailSection = () => {
             {latestProduct.name}
           </h2>
 
+          <div className="mb-4">
+            <div className="flex items-center gap-2">
+              <div className="flex">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <svg
+                    key={star}
+                    className="w-5 h-5 text-pink-600 fill-current"
+                    viewBox="0 0 20 20"
+                  >
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                ))}
+              </div>
+              {latestProduct.ratings && latestProduct.ratings.length > 0 && (
+                <>
+                  <span className="ml-2 text-sm text-gray-600">
+                    ({latestProduct.ratings.length} review
+                    {latestProduct.ratings.length !== 1 ? "s" : ""})
+                  </span>
+                  <span className="text-sm text-gray-500">
+                    {(
+                      latestProduct.ratings.reduce(
+                        (acc, rating) => acc + (rating.rating || rating),
+                        0
+                      ) / latestProduct.ratings.length
+                    ).toFixed(1)}{" "}
+                    out of 5
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <p className="text-lg xs:text-xl sm:text-xl md:text-2xl font-bold text-gray-900">
               ₹{latestProduct.price}
@@ -399,7 +432,7 @@ const HomeProductDetailSection = () => {
                     disabled={sizeObj.stock === 0}
                     className={`px-3 py-2 xs:px-3.5 xs:py-2 sm:px-4 sm:py-2.5 border-2 font-medium text-xs xs:text-sm sm:text-sm md:text-base rounded-md transition-all min-w-[3rem] ${
                       selectedSize === sizeObj.size
-                        ? "bg-black text-white border-black"
+                        ? "bg-pink-500 text-white border-pink-500"
                         : sizeObj.stock === 0
                         ? "bg-gray-200 text-gray-400 border-gray-300 cursor-not-allowed"
                         : "bg-white text-black border-gray-300 hover:border-gray-400"
@@ -417,19 +450,19 @@ const HomeProductDetailSection = () => {
 
           {/* Quantity + Cart - Mobile Optimized */}
           <div className="flex flex-col xs:flex-row gap-2 sm:gap-3 md:gap-4 items-stretch xs:items-center pt-2">
-            <div className="flex items-center border-2 border-gray-300 rounded-lg w-fit mx-auto xs:mx-0 bg-white">
-              <button 
-                onClick={() => setQuantity(Math.max(1, quantity - 1))} 
-                className="px-3 xs:px-3.5 sm:px-4 py-2 sm:py-2.5 hover:bg-gray-100 active:bg-gray-200 transition text-base sm:text-lg font-medium"
+            <div className="flex items-center border-2 rounded w-fit bg-gray-200">
+              <button
+                onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                className="px-3 py-2 hover:bg-gray-100"
               >
-                −
+                -
               </button>
-              <span className="px-3 xs:px-4 sm:px-5 py-2 sm:py-2.5 min-w-[3rem] text-center font-medium text-sm sm:text-base">
+              <span className="px-4 py-2 min-w-[3rem] text-center">
                 {quantity}
               </span>
-              <button 
-                onClick={() => setQuantity(quantity + 1)} 
-                className="px-3 xs:px-3.5 sm:px-4 py-2 sm:py-2.5 hover:bg-gray-100 active:bg-gray-200 transition text-base sm:text-lg font-medium"
+              <button
+                onClick={() => setQuantity(quantity + 1)}
+                className="px-3 py-2 hover:bg-gray-100"
               >
                 +
               </button>
